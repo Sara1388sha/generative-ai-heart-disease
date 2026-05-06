@@ -10,6 +10,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import ollama
 import gradio as gr
+try:
+    import ollama
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    OLLAMA_AVAILABLE = False
 
 # ------------------------------
 # Load Data
@@ -49,7 +54,13 @@ Blood Pressure: {row['trestbps']}
 Max Heart Rate: {row['thalach']}
 """
 
-def call_llm(prompt, system_prompt):
+ddef call_llm(prompt, system_prompt):
+    if not OLLAMA_AVAILABLE:
+        return (
+            "LLM is disabled in this environment.\n"
+            "Run locally with Ollama installed to enable AI responses."
+        )
+
     response = ollama.chat(
         model="llama3",
         messages=[
