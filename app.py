@@ -2,7 +2,6 @@
 # Generative AI for Heart Disease Education
 # Educational & Research Purposes Only
 # ==============================
-
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
@@ -69,7 +68,6 @@ Max Heart Rate: {row['thalach']}
         ]
     )
     return response["message"]["content"]
-
 SYSTEM_PROMPT = """
 You are a medical assistant.
 Give safe, general, evidence-based advice.
