@@ -32,30 +32,17 @@ Always recommend consulting a healthcare professional.
 # LLM FUNCTION
 # =========================================
 
-def call_llm(prompt, system_prompt):
+response = f"""
+Based on the patient profile, the predicted heart disease risk is {risk_prob:.2f}.
 
-    if not OLLAMA_AVAILABLE:
-        return "Ollama is not installed."
-
-    try:
-        response = ollama.chat(
-            model="llama3",
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        )
-
-        return response["message"]["content"]
-
-    except Exception as e:
-        return f"LLM Error: {e}"
+Recommendations:
+- Maintain a healthy diet
+- Exercise regularly
+- Reduce cholesterol intake
+- Monitor blood pressure
+- Avoid smoking
+- Consult a healthcare professional for personalized advice
+"""
 
 # =========================================
 # MULTILINGUAL PROMPT
