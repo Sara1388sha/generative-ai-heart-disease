@@ -223,38 +223,38 @@ chunks = split_text(pdf_text)
 # In[35]:
 
 
-import chromadb
+#import chromadb
 
-client = chromadb.Client()
-collection = client.get_or_create_collection(name="medical_docs")
+#client = chromadb.Client()
+#collection = client.get_or_create_collection(name="medical_docs")
 
-collection.add(
-    documents=chunks,
-    ids=[str(i) for i in range(len(chunks))]
-)
+#collection.add(
+  #  documents=chunks,
+   # ids=[str(i) for i in range(len(chunks))]
+#)
 
-def retrieve_chunks(query, top_k=3):
-    results = collection.query(
-        query_texts=[query],
-        n_results=top_k
-    )
-    return results["documents"][0]
+#def retrieve_chunks(query, top_k=3):
+    #results = collection.query(
+       # query_texts=[query],
+       # n_results=top_k
+   # )
+   # return results["documents"][0]
 
 
 # In[36]:
 
 
-print(collection.count())
+#print(collection.count())
 
 
 # In[37]:
 
 
-def build_rag_prompt(profile, query):
-    docs = retrieve_chunks(query)
-    context = "\n".join(docs)
+#def build_rag_prompt(profile, query):
+ #   docs = retrieve_chunks(query)
+  #  context = "\n".join(docs)
 
-    return f"""
+ #   return f"""
 You are a helpful medical assistant.
 
 Patient profile:
@@ -380,25 +380,25 @@ pdf_text = ""
 # In[74]:
 
 
-def retrieve_chroma(query, top_k=2):
-    results = collection.query(
-        query_texts=[query],
-        n_results=top_k
-    )
-    return results["documents"][0]
+##def retrieve_chroma(query, top_k=2):
+     #results = collection.query(
+       # query_texts=[query],
+       # n_results=top_k
+   # )
+    #return results["documents"][0]
 
 
 # In[76]:
 
 
-docs = retrieve_chroma("how to reduce cholesterol")
+#docs = retrieve_chroma("how to reduce cholesterol")
 
 
 # In[78]:
 
 
 def build_rag_prompt(profile, query):
-    docs = retrieve_chroma(query)
+    docs = []
     context = "\n".join(docs)
 
     prompt = f"""
