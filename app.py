@@ -717,7 +717,7 @@ Patient Profile:
 
 {profile}
 
-#Predicted risk probability: {risk_prob:.2f}
+# Predicted risk probability: {risk_prob:.2f}
 
 #Provide general lifestyle advice for heart health.
 
@@ -943,35 +943,35 @@ interface.launch()
 # In[172]:
 
 
-import sys
+#import sys
 get_ipython().system('{sys.executable} -m pip install langdetect')
 
 
 # In[174]:
 
 
-from langdetect import detect
+#from langdetect import detect
 
 
 # In[176]:
 
 
-from langdetect import detect
+#from langdetect import detect
 
-def get_language(text):
-    try:
-        return detect(text)
-    except:
-        return "en"
+#def get_language(text):
+   # try:
+       # return detect(text)
+  #  except:
+        #return "en"
 
 
 # In[178]:
 
 
-def build_multilingual_prompt(profile, risk_prob, context, lang="en"):
+#def build_multilingual_prompt(profile, risk_prob, context, lang="en"):
     
-    if lang == "fa":  # Persian
-        return f"""
+ #   if lang == "fa":  # Persian
+      #  return f"""
 شما یک دستیار پزشکی هستید.
 
 اطلاعات بیمار:
