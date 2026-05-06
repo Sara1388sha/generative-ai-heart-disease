@@ -87,12 +87,15 @@ model = RandomForestClassifier(
 model.fit(X_train, y_train)
 
 # =========================================
-# LLM FUNCTION
+# MULTILINGUAL LLM FUNCTION
 # =========================================
 
-def call_llm(prompt):
+def call_llm(prompt, lang="en"):
 
-    # If Ollama works locally
+    # =========================================
+    # OLLAMA RESPONSE
+    # =========================================
+
     if OLLAMA_AVAILABLE:
 
         try:
@@ -116,8 +119,39 @@ def call_llm(prompt):
         except:
             pass
 
-    # Fallback response for Streamlit Cloud
-    return """
+    # =========================================
+    # FALLBACK MULTILINGUAL RESPONSE
+    # =========================================
+
+    if lang == "fa":
+
+        return """
+توصیه‌های عمومی:
+
+• رژیم غذایی سالم داشته باشید
+• مصرف چربی و کلسترول را کاهش دهید
+• ورزش منظم انجام دهید
+• فشار خون را کنترل کنید
+• از سیگار پرهیز کنید
+• با پزشک مشورت کنید
+"""
+
+    elif lang == "fr":
+
+        return """
+Recommandations générales :
+
+• Adoptez une alimentation saine
+• Réduisez les graisses et le cholestérol
+• Faites de l’exercice régulièrement
+• Contrôlez votre tension artérielle
+• Évitez de fumer
+• Consultez un professionnel de santé
+"""
+
+    else:
+
+        return """
 General Recommendations:
 
 • Follow a heart-healthy diet
@@ -126,7 +160,7 @@ General Recommendations:
 • Maintain healthy blood pressure
 • Avoid smoking
 • Reduce stress
-• Consult a healthcare professional for personalized care
+• Consult a healthcare professional
 """
 
 # =========================================
@@ -300,19 +334,15 @@ if st.button("Predict Risk"):
     # Probability
     risk_prob = model.predict_proba(sample)[0][1]
 
-    # SAME threshold as notebook
+    # Same threshold as notebook
     prediction = int(risk_prob > 0.3)
 
     if prediction == 1:
         risk = "HIGH RISK"
+        st.error(f"Prediction: {risk}")
     else:
         risk = "LOW RISK"
-
-    # =========================================
-    # OUTPUTS
-    # =========================================
-
-    st.subheader(f"Prediction: {risk}")
+        st.success(f"Prediction: {risk}")
 
     st.write(
         f"Risk Probability: {risk_prob:.2f}"
@@ -325,7 +355,7 @@ Sex: {sex}
 Chest Pain Type: {cp}
 Blood Pressure: {trestbps}
 Cholesterol: {chol}
-Max Heart Rate: {thalach}
+Maximum Heart Rate: {thalach}
 """
 
     # Prompt
@@ -336,7 +366,10 @@ Max Heart Rate: {thalach}
     )
 
     # AI Response
-    response = call_llm(prompt)
+    response = call_llm(
+        prompt,
+        language
+    )
 
     st.subheader("AI Medical Advice")
 
