@@ -32,8 +32,10 @@ Always recommend consulting a healthcare professional.
 # LLM FUNCTION
 # =========================================
 
-response = f"""
-Based on the patient profile, the predicted heart disease risk is {risk_prob:.2f}.
+def call_llm(prompt, system_prompt):
+
+    response = f"""
+Based on the patient profile, the predicted heart disease risk is moderate.
 
 Recommendations:
 - Maintain a healthy diet
@@ -41,8 +43,10 @@ Recommendations:
 - Reduce cholesterol intake
 - Monitor blood pressure
 - Avoid smoking
-- Consult a healthcare professional for personalized advice
+- Consult a healthcare professional
 """
+
+    return response
 
 # =========================================
 # MULTILINGUAL PROMPT
