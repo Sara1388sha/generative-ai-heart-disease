@@ -54,7 +54,7 @@ Blood Pressure: {row['trestbps']}
 Max Heart Rate: {row['thalach']}
 """
 
-ddef call_llm(prompt, system_prompt):
+ def call_llm(prompt, system_prompt):
     if not OLLAMA_AVAILABLE:
         return (
             "LLM is disabled in this environment.\n"
