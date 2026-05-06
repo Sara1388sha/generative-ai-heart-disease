@@ -520,9 +520,9 @@ risk_prob = model.predict_proba(X_sample)[0][1]
 # threshold 
 prediction = int(risk_prob > 0.3)
 
-print(f"Risk Probability: {risk_prob:.2f}")
-print("Prediction:", prediction)
-print(profile)
+#print(f"Risk Probability: {risk_prob:.2f}")
+#print("Prediction:", prediction)
+#print(profile)
 
 
 # In[92]:
