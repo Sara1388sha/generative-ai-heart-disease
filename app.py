@@ -1,0 +1,2695 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "23bc940c-c96b-4c3c-b4d6-15a2158ba351",
+   "metadata": {},
+   "source": [
+    "## Generative AI for Personalized Heart Disease Education\n",
+    "This project combines machine learning with retrieval-augmented generation (RAG)\n",
+    "to generate personalized medical recommendations."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "8aea276c-2f4a-458e-9b0e-3d5720db6f23",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import requests\n",
+    "import textwrap\n",
+    "import matplotlib.pyplot as plt\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.linear_model import LogisticRegression\n",
+    "from sklearn.ensemble import RandomForestClassifier\n",
+    "from sklearn.metrics import (\n",
+    "    accuracy_score,\n",
+    "    precision_score,\n",
+    "    recall_score,\n",
+    "    f1_score,\n",
+    "    roc_auc_score,\n",
+    "    confusion_matrix,\n",
+    "    ConfusionMatrixDisplay,\n",
+    "    classification_report\n",
+    ")\n",
+    "from sklearn.feature_extraction.text import TfidfVectorizer\n",
+    "from sklearn.metrics.pairwise import cosine_similarity"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "6e727cf8-d4cb-49d0-80b5-bf852501f36e",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>age</th>\n",
+       "      <th>sex</th>\n",
+       "      <th>cp</th>\n",
+       "      <th>trestbps</th>\n",
+       "      <th>chol</th>\n",
+       "      <th>fbs</th>\n",
+       "      <th>restecg</th>\n",
+       "      <th>thalach</th>\n",
+       "      <th>exang</th>\n",
+       "      <th>oldpeak</th>\n",
+       "      <th>slope</th>\n",
+       "      <th>ca</th>\n",
+       "      <th>thal</th>\n",
+       "      <th>num</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>63.0</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>145.0</td>\n",
+       "      <td>233.0</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>150.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>2.3</td>\n",
+       "      <td>3.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>6.0</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>67.0</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>4.0</td>\n",
+       "      <td>160.0</td>\n",
+       "      <td>286.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>108.0</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>1.5</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>3.0</td>\n",
+       "      <td>3.0</td>\n",
+       "      <td>2</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>67.0</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>4.0</td>\n",
+       "      <td>120.0</td>\n",
+       "      <td>229.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>129.0</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>2.6</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>7.0</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>37.0</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>3.0</td>\n",
+       "      <td>130.0</td>\n",
+       "      <td>250.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>187.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>3.5</td>\n",
+       "      <td>3.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>3.0</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>41.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>130.0</td>\n",
+       "      <td>204.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>172.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>1.4</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>3.0</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "    age  sex   cp  trestbps   chol  fbs  restecg  thalach  exang  oldpeak  \\\n",
+       "0  63.0  1.0  1.0     145.0  233.0  1.0      2.0    150.0    0.0      2.3   \n",
+       "1  67.0  1.0  4.0     160.0  286.0  0.0      2.0    108.0    1.0      1.5   \n",
+       "2  67.0  1.0  4.0     120.0  229.0  0.0      2.0    129.0    1.0      2.6   \n",
+       "3  37.0  1.0  3.0     130.0  250.0  0.0      0.0    187.0    0.0      3.5   \n",
+       "4  41.0  0.0  2.0     130.0  204.0  0.0      2.0    172.0    0.0      1.4   \n",
+       "\n",
+       "   slope   ca  thal  num  \n",
+       "0    3.0  0.0   6.0    0  \n",
+       "1    2.0  3.0   3.0    2  \n",
+       "2    2.0  2.0   7.0    1  \n",
+       "3    3.0  0.0   3.0    0  \n",
+       "4    1.0  0.0   3.0    0  "
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "url = \"https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data\"\n",
+    "\n",
+    "columns = [\n",
+    "    \"age\", \"sex\", \"cp\", \"trestbps\", \"chol\", \"fbs\", \"restecg\",\n",
+    "    \"thalach\", \"exang\", \"oldpeak\", \"slope\", \"ca\", \"thal\", \"num\"\n",
+    "]\n",
+    "\n",
+    "df = pd.read_csv(url, header=None, names=columns, na_values=\"?\")\n",
+    "df.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "e3b8cfe3-1fc3-4d19-8887-51d5b9182b58",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(303, 14)"
+      ]
+     },
+     "execution_count": 4,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "7395f82c-1378-4544-97bd-cf6d1dd587ec",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "14"
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "len(df.columns)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "ac527a9b-c436-43e5-9c70-743d0979e41b",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 303 entries, 0 to 302\n",
+      "Data columns (total 14 columns):\n",
+      " #   Column    Non-Null Count  Dtype  \n",
+      "---  ------    --------------  -----  \n",
+      " 0   age       303 non-null    float64\n",
+      " 1   sex       303 non-null    float64\n",
+      " 2   cp        303 non-null    float64\n",
+      " 3   trestbps  303 non-null    float64\n",
+      " 4   chol      303 non-null    float64\n",
+      " 5   fbs       303 non-null    float64\n",
+      " 6   restecg   303 non-null    float64\n",
+      " 7   thalach   303 non-null    float64\n",
+      " 8   exang     303 non-null    float64\n",
+      " 9   oldpeak   303 non-null    float64\n",
+      " 10  slope     303 non-null    float64\n",
+      " 11  ca        299 non-null    float64\n",
+      " 12  thal      301 non-null    float64\n",
+      " 13  num       303 non-null    int64  \n",
+      "dtypes: float64(13), int64(1)\n",
+      "memory usage: 33.3 KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "df.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "8a2f5186-7bfb-4f36-9f93-fe7f00636a8d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df = df.dropna()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "7497c177-ccf6-411e-8df6-d4c3a472bee2",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# target\n",
+    "df[\"target\"] = df[\"num\"].apply(lambda x: 1 if x > 0 else 0)\n",
+    "\n",
+    "# features\n",
+    "X = df.drop(columns=[\"num\", \"target\"])\n",
+    "y = df[\"target\"]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e0510dd0-3aa0-4118-b921-29677a77889e",
+   "metadata": {},
+   "source": [
+    "The original UCI Heart Disease dataset was used and stored locally to ensure reproducibility and avoid server availability issues."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "id": "e53dfd0d-5f13-401d-9ff3-675bbe161f11",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Cross-validation accuracy: [0.85       0.9        0.77966102 0.77966102 0.79661017]\n",
+      "Mean CV accuracy: 0.8211864406779661\n"
+     ]
+    }
+   ],
+   "source": [
+    "from sklearn.model_selection import train_test_split, cross_val_score\n",
+    "\n",
+    "#  split \n",
+    "X_train, X_test, y_train, y_test = train_test_split(\n",
+    "    X, y,\n",
+    "    test_size=0.2,\n",
+    "    stratify=y,\n",
+    "    random_state=42\n",
+    ")\n",
+    "\n",
+    "#  model random forest\n",
+    "model = RandomForestClassifier()\n",
+    "model.fit(X_train, y_train)\n",
+    "\n",
+    "#  cross validation \n",
+    "\n",
+    "scores = cross_val_score(model, X, y, cv=5)\n",
+    "\n",
+    "print(\"Cross-validation accuracy:\", scores)\n",
+    "print(\"Mean CV accuracy:\", scores.mean())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "0be2fa08-d269-4b0b-9828-bbdc53312cc1",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Std: 0.04710522915973686\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"Std:\", scores.std())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "ec455d5c-2e5e-4a20-8c13-d16c8443a3d7",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Index(['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach',\n",
+      "       'exang', 'oldpeak', 'slope', 'ca', 'thal'],\n",
+      "      dtype='object')\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(X.columns)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "ac2a5008-c765-4ba1-9242-a01bb717e552",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "=== THRESHOLD TUNING ===\n",
+      "Threshold: 0.3\n",
+      "Accuracy: 0.8333333333333334\n",
+      "Precision: 0.75\n",
+      "Recall: 0.9642857142857143\n",
+      "F1 Score: 0.8437499999999999\n",
+      "\n",
+      "=== DEFAULT MODEL ===\n",
+      "Accuracy: 0.817\n",
+      "Precision: 0.840\n",
+      "Recall: 0.750\n",
+      "F1 Score: 0.792\n",
+      "ROC AUC: 0.935\n"
+     ]
+    }
+   ],
+   "source": [
+    "from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score\n",
+    "\n",
+    "y_pred = model.predict(X_test)\n",
+    "y_prob = model.predict_proba(X_test)[:,1]\n",
+    "\n",
+    "# threshold\n",
+    "threshold = 0.3\n",
+    "y_pred_new = (y_prob >= threshold).astype(int)\n",
+    "\n",
+    "print(\"\\n=== THRESHOLD TUNING ===\")\n",
+    "print(\"Threshold:\", threshold)\n",
+    "print(\"Accuracy:\", accuracy_score(y_test, y_pred_new))\n",
+    "print(\"Precision:\", precision_score(y_test, y_pred_new))\n",
+    "print(\"Recall:\", recall_score(y_test, y_pred_new))\n",
+    "print(\"F1 Score:\", f1_score(y_test, y_pred_new))\n",
+    "\n",
+    "\n",
+    "# DEFAULT MODEL (threshold=0.5) \n",
+    "accuracy = accuracy_score(y_test, y_pred)\n",
+    "precision = precision_score(y_test, y_pred)\n",
+    "recall = recall_score(y_test, y_pred)\n",
+    "f1 = f1_score(y_test, y_pred)\n",
+    "roc_auc = roc_auc_score(y_test, y_prob)\n",
+    "\n",
+    "print(\"\\n=== DEFAULT MODEL ===\")\n",
+    "print(f\"Accuracy: {accuracy:.3f}\")\n",
+    "print(f\"Precision: {precision:.3f}\")\n",
+    "print(f\"Recall: {recall:.3f}\")\n",
+    "print(f\"F1 Score: {f1:.3f}\")\n",
+    "print(f\"ROC AUC: {roc_auc:.3f}\")\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "id": "20623a18-0123-4aec-8f44-efbe7d4a7d70",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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b663335bSUlJGjt2rJo3b67mzZvrySefPO9xx44dO+fnqHr/5375WarWE3jzWQzD0J133qm//e1vWrBggVq2bKmrrrrqrPt+9NFH6tevn6Qz3yr44IMPtG3bNk2ePNnr657tc54vxuzsbJWUlCglJYW5ceAsSOQIGpGRkbr22mu1Y8eOaovVzqYqmR05cqTae4cPH1bDhg19Flt0dLQkqbS01G38l/PwknTVVVfp1Vdf1fHjx7V161b16NFD48eP1/Lly895/gYNGpzzc0jy6Wf5uezsbB09elQLFizQnXfeec79li9frrp16+q1117Trbfeqp49e6pLly41uubZFg2ey5EjRzR27Fh16NBBx44d0wMPPFCjawLhjESOoDJx4kSZpqlRo0addXFYeXm5Xn31VUnSNddcI0muxWpVtm3bpr179+raa6/1WVxVK693797tNl4Vy9lERkaqW7dueuaZZyRJH3/88Tn3vfbaa7V+/XpX4q7y4osvKjY21m9fzWrUqJEefPBBDRgwQMOHDz/nfoZhqE6dOoqMjHSNnT59Wi+99FK1fX3V5aisrNRtt90mwzD0r3/9S7m5uZo7d65eeeUVy+cGwgnfI0dQ6dGjh+bPn68xY8aoc+fOuueee9S2bVuVl5dr586deu6559SuXTsNGDBArVq10ujRozV37lxFREQoKytLBw4c0COPPKL09HT993//t8/iuvHGG5WYmKgRI0boscceU506dbR48WLl5+e77bdgwQKtX79e/fv3V5MmTVRSUuJaGX7ddded8/xTpkzRa6+9pj59+ujRRx9VYmKili5dqtdff12zZs1SQkKCzz7LL82YMeOC+/Tv31+zZ8/WsGHDNHr0aB07dkx//vOfz/oVwfbt22v58uVasWKFmjVrpujo6BrNa0+ZMkXvvfee3nrrLaWkpOj+++/Xpk2bNGLECHXs2FGZmZlenxMIRyRyBJ1Ro0bpyiuv1BNPPKGZM2eqoKBAdevWVcuWLTVs2DCNGzfOte/8+fPVvHlzPf/883rmmWeUkJCgG264Qbm5uWedE6+p+Ph4rV27VuPHj9cdd9yhiy66SCNHjlRWVpZGjhzp2q9Dhw566623NGXKFBUUFKh+/fpq166d1qxZ45pjPptWrVpp8+bNmjRpksaOHavTp0+rdevWWrRokVd3SPOXa665Ri+88IJm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9prq16+viooKlZeXa+DAgZo7d67r/YyMDF1yySWu1zt27NDJkyfVoEEDt/OcPn1aX375pSRp79691Z7B3qNHD23YsOGsMezdu1elpaW69tprPY7722+/VX5+vkaMGKFRo0a5xisqKlzz73v37tUVV1yh2NhYtzi8tWHDBk2fPl2ff/65ioqKVFFRoZKSEhUXF6tevXqSpDp16qhLly6uYy677DJddNFF2rt3r6688krt2LFD27Ztc6vAKysrVVJSolOnTrnFCMD3SOQIW3369NH8+fNVt25dpaWlVVvMVpWoqjidTqWmpmrjxo3VzlXTr2DFxMR4fYzT6ZR0pr3erVs3t/ciIyMlSaYPnj588OBB3Xjjjbr77rv1+OOPKzExUe+//75GjBjhNgUhnfn62C9VjTmdTk2dOlWDBw+utk90dLTlOAGcH4kcYatevXq69NJLPd6/U6dOKigoUJ06ddS0adOz7tO6dWtt3bpVv//9711jW7duPec5W7RooZiYGL3zzjsaOXJktfejoqIknalgqyQnJ6tRo0b66quvdPvtt5/1vG3atNFLL72k06dPu35ZOF8cZ7N9+3ZVVFToL3/5iyIiziyXWblyZbX9KioqtH37dl155ZWSpH379umHH37QZZddJunMz23fvn1e/awB+A6JHPjRddddpx49emjQoEGaOXOmWrVqpcOHD+uNN97QoEGD1KVLF/3xj3/U8OHD1aVLF/3617/W0qVLtWfPHjVr1uys54yOjtbDDz+shx56SFFRUfrVr36lb7/9Vnv27NGIESOUlJSkmJgYrV27Vo0bN1Z0dLQSEhKUk5Oj++67T/Hx8crKylJpaam2b9+u77//XhMmTNCwYcM0efJkjRgxQv/7v/+rAwcO6M9//rNXn7d58+aqqKjQ3LlzNWDAAH3wwQdasGBBtf3q1q2re++9V0899ZTq1q2rcePGqXv37q7E/uijj+o3v/mN0tPTdcsttygiIkK7d+/Wp59+qj/96U/e/4cA4BVWrQM/MgxDb7zxhq6++mrdddddatmypYYOHaoDBw64VpkPGTJEjz76qB5++GF17txZBw8e1D333HPe8z7yyCO6//779eijj6p169YaMmSICgsLJZ2Zf37qqaf07LPPKi0tTQMHDpQkjRw5Un/961+1ePFitW/fXr169dLixYtdX1erX7++Xn31VX3++efq2LGjJk+erJkzZ3r1eTt06KDZs2dr5syZateunZYuXarc3Nxq+8XGxurhhx/WsGHD1KNHD8XExGj58uWu96+//nq99tprWrdunbp27aru3btr9uzZysjI8CoeADVjmL6YbAMAAAFBRQ4AQAgjkQMAEMJI5AAAhDASOQAAIYxEDgBACCORAwAQwkjkAACEMBI5AAAhjEQOAEAII5EDABDCSOQAAIQwEjkAACHs/wMbvgqRzvCFLwAAAABJRU5ErkJggg==\n",
+      "text/plain": [
+       "<Figure size 640x480 with 2 Axes>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "from sklearn.metrics import ConfusionMatrixDisplay\n",
+    "import matplotlib.pyplot as plt\n",
+    "\n",
+    "ConfusionMatrixDisplay.from_estimator(model, X_test, y_test)\n",
+    "\n",
+    "plt.title(\"Confusion Matrix\")\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 27,
+   "id": "8f48c0f3-b7fd-4ee3-9cff-bf4de21d3ec4",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAAioAAAHFCAYAAADcytJ5AAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjcuMCwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy88F64QAAAACXBIWXMAAA9hAAAPYQGoP6dpAABEQUlEQVR4nO3deVxVdf7H8fcBFVABRUXQcN+X0lxSmxHcSjNHx0pbpsTUFkkzl0wtwTK3adLS1LISLdP6jZZljpkpZKnlrinZ4oYpY1mCoiJwz+8P4043QLncCxyPr+fjcR4P7znf7zmfyxh+5vP5nnMM0zRNAQAAWJBPSQcAAACQHxIVAABgWSQqAADAskhUAACAZZGoAAAAyyJRAQAAlkWiAgAALItEBQAAWBaJCgAAsCwSFaAE7NmzRwMHDlTt2rXl7++v8uXL68Ybb9SMGTP066+/Fum1d+7cqcjISAUHB8swDM2aNcvr1zAMQ3FxcV4/75XEx8fLMAwZhqGEhIRcx03TVL169WQYhqKiogp1jblz5yo+Pt6tOQkJCfnGBODySpV0AMC1ZsGCBRo6dKgaNmyoMWPGqEmTJsrMzNS2bds0f/58bd68We+//36RXf/BBx9Uenq6li1bpooVK6pWrVpev8bmzZt13XXXef28BRUYGKg33ngjVzKSmJioH3/8UYGBgYU+99y5c1W5cmVFR0cXeM6NN96ozZs3q0mTJoW+LnCtIlEBitHmzZv16KOPqlu3bvrggw/k5+fnPNatWzeNGjVKa9asKdIYvvnmGw0ZMkQ9evQosmu0a9euyM5dEP3799eSJUv0yiuvKCgoyLn/jTfeUPv27ZWWllYscWRmZsowDAUFBZX4zwS4WtH6AYrRlClTZBiGXnvtNZckJUeZMmX0t7/9zfnZ4XBoxowZatSokfz8/BQaGqoHHnhAx44dc5kXFRWlZs2aaevWrfrrX/+qsmXLqk6dOpo2bZocDoek/7VFsrKyNG/ePGeLRJLi4uKcf/6jnDmHDx927lu/fr2ioqJUqVIlBQQEqEaNGrrjjjt07tw555i8Wj/ffPONevfurYoVK8rf318tWrTQokWLXMbktEiWLl2qCRMmqFq1agoKClLXrl114MCBgv2QJd1zzz2SpKVLlzr3paamavny5XrwwQfznDNp0iTddNNNCgkJUVBQkG688Ua98cYb+uN7W2vVqqV9+/YpMTHR+fPLqUjlxP7WW29p1KhRql69uvz8/PTDDz/kav388ssvioiIUIcOHZSZmek8//79+1WuXDndf//9Bf6ugN2RqADFJDs7W+vXr1erVq0UERFRoDmPPvqoxo4dq27duunDDz/Uc889pzVr1qhDhw765ZdfXMampKTovvvu0z/+8Q99+OGH6tGjh8aNG6e3335bktSzZ09t3rxZknTnnXdq8+bNzs8FdfjwYfXs2VNlypTRm2++qTVr1mjatGkqV66cLl68mO+8AwcOqEOHDtq3b59efvllrVixQk2aNFF0dLRmzJiRa/z48eN15MgRvf7663rttdf0/fffq1evXsrOzi5QnEFBQbrzzjv15ptvOvctXbpUPj4+6t+/f77f7eGHH9Z7772nFStWqG/fvho2bJiee+4555j3339fderUUcuWLZ0/vz+36caNG6ejR49q/vz5+uijjxQaGprrWpUrV9ayZcu0detWjR07VpJ07tw53XXXXapRo4bmz59foO8JXBNMAMUiJSXFlGTefffdBRqflJRkSjKHDh3qsv+rr74yJZnjx4937ouMjDQlmV999ZXL2CZNmpi33nqryz5JZkxMjMu+2NhYM69fBwsXLjQlmYcOHTJN0zT//e9/m5LMXbt2XTZ2SWZsbKzz89133236+fmZR48edRnXo0cPs2zZsubp06dN0zTNDRs2mJLM2267zWXce++9Z0oyN2/efNnr5sS7detW57m++eYb0zRNs02bNmZ0dLRpmqbZtGlTMzIyMt/zZGdnm5mZmeazzz5rVqpUyXQ4HM5j+c3NuV7Hjh3zPbZhwwaX/dOnTzclme+//745YMAAMyAgwNyzZ89lvyNwraGiAljUhg0bJCnXos22bduqcePG+uyzz1z2h4WFqW3bti77rr/+eh05csRrMbVo0UJlypTRQw89pEWLFungwYMFmrd+/Xp16dIlVyUpOjpa586dy1XZ+WP7S7r0PSS59V0iIyNVt25dvfnmm9q7d6+2bt2ab9snJ8auXbsqODhYvr6+Kl26tCZOnKhTp07p5MmTBb7uHXfcUeCxY8aMUc+ePXXPPfdo0aJFmj17tpo3b17g+cC1gEQFKCaVK1dW2bJldejQoQKNP3XqlCQpPDw817Fq1ao5j+eoVKlSrnF+fn46f/58IaLNW926dbVu3TqFhoYqJiZGdevWVd26dfXSSy9ddt6pU6fy/R45x//oz98lZz2PO9/FMAwNHDhQb7/9tubPn68GDRror3/9a55jv/76a91yyy2SLt2V9eWXX2rr1q2aMGGC29fN63teLsbo6GhduHBBYWFhrE0B8kCiAhQTX19fdenSRdu3b8+1GDYvOf9YnzhxItex48ePq3Llyl6Lzd/fX5KUkZHhsv/P62Ak6a9//as++ugjpaamasuWLWrfvr1GjBihZcuW5Xv+SpUq5fs9JHn1u/xRdHS0fvnlF82fP18DBw7Md9yyZctUunRprVq1Sv369VOHDh3UunXrQl0zr0XJ+Tlx4oRiYmLUokULnTp1SqNHjy7UNQE7I1EBitG4ceNkmqaGDBmS5+LTzMxMffTRR5Kkzp07S5JzMWyOrVu3KikpSV26dPFaXDl3ruzZs8dlf04sefH19dVNN92kV155RZK0Y8eOfMd26dJF69evdyYmORYvXqyyZcsW2a271atX15gxY9SrVy8NGDAg33GGYahUqVLy9fV17jt//rzeeuutXGO9VaXKzs7WPffcI8Mw9J///EdTp07V7NmztWLFCo/PDdgJz1EBilH79u01b948DR06VK1atdKjjz6qpk2bKjMzUzt37tRrr72mZs2aqVevXmrYsKEeeughzZ49Wz4+PurRo4cOHz6sZ555RhEREXriiSe8Ftdtt92mkJAQDRo0SM8++6xKlSql+Ph4JScnu4ybP3++1q9fr549e6pGjRq6cOGC886arl275nv+2NhYrVq1Sp06ddLEiRMVEhKiJUuW6OOPP9aMGTMUHBzste/yZ9OmTbvimJ49e+rFF1/Uvffeq4ceekinTp3SCy+8kOct5M2bN9eyZcv07rvvqk6dOvL39y/UupLY2Fht3LhRa9euVVhYmEaNGqXExEQNGjRILVu2VO3atd0+J2BHJCpAMRsyZIjatm2rmTNnavr06UpJSVHp0qXVoEED3XvvvXrsscecY+fNm6e6devqjTfe0CuvvKLg4GB1795dU6dOzXNNSmEFBQVpzZo1GjFihP7xj3+oQoUKGjx4sHr06KHBgwc7x7Vo0UJr165VbGysUlJSVL58eTVr1kwffvihc41HXho2bKhNmzZp/PjxiomJ0fnz59W4cWMtXLjQrSe8FpXOnTvrzTff1PTp09WrVy9Vr15d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\n",
+      "text/plain": [
+       "<Figure size 640x480 with 2 Axes>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "ConfusionMatrixDisplay.from_estimator(\n",
+    "    model,\n",
+    "    X_test,\n",
+    "    y_test,\n",
+    "    display_labels=[\"Low Risk\", \"High Risk\"]\n",
+    ")\n",
+    "\n",
+    "plt.title(\"Confusion Matrix\")\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "id": "e97d1fef-bfbd-45c0-b6ce-cf2cd4e53ac0",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def create_profile(row):\n",
+    "    return f\"\"\"\n",
+    "Patient is {int(row['age'])} years old.\n",
+    "Cholesterol: {row['chol']}\n",
+    "Blood pressure: {row['trestbps']}\n",
+    "Max heart rate: {row['thalach']}\n",
+    "\"\"\"\n",
+    "\n",
+    "df[\"profile_text\"] = df.apply(create_profile, axis=1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "id": "4fdead59-5a14-4149-9b2c-39244a097aba",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from PyPDF2 import PdfReader\n",
+    "\n",
+    "def load_pdf(file_path):\n",
+    "    reader = PdfReader(file_path)\n",
+    "    text = \"\"\n",
+    "    for page in reader.pages:\n",
+    "        text += page.extract_text()\n",
+    "    return text\n",
+    "\n",
+    "pdf_text = load_pdf(\"How-Can-I-Improve-Cholesterol.pdf\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "id": "bfc5d392-6468-450d-bec1-882ef31d81c6",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def split_text(text, chunk_size=300):\n",
+    "    chunks = []\n",
+    "    for i in range(0, len(text), chunk_size):\n",
+    "        chunks.append(text[i:i+chunk_size])\n",
+    "    return chunks\n",
+    "\n",
+    "chunks = split_text(pdf_text)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "id": "bc988786-3b54-4db1-87b9-c050448400b8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import chromadb\n",
+    "\n",
+    "client = chromadb.Client()\n",
+    "collection = client.get_or_create_collection(name=\"medical_docs\")\n",
+    "\n",
+    "collection.add(\n",
+    "    documents=chunks,\n",
+    "    ids=[str(i) for i in range(len(chunks))]\n",
+    ")\n",
+    "\n",
+    "def retrieve_chunks(query, top_k=3):\n",
+    "    results = collection.query(\n",
+    "        query_texts=[query],\n",
+    "        n_results=top_k\n",
+    "    )\n",
+    "    return results[\"documents\"][0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "id": "908bc4a6-5d20-4c5c-870f-ebd84ea66eaf",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "14\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(collection.count())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "id": "4a35e4c8-bce0-4b13-8c52-8a6000be860e",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def build_rag_prompt(profile, query):\n",
+    "    docs = retrieve_chunks(query)\n",
+    "    context = \"\\n\".join(docs)\n",
+    "\n",
+    "    return f\"\"\"\n",
+    "You are a helpful medical assistant.\n",
+    "\n",
+    "Patient profile:\n",
+    "{profile}\n",
+    "\n",
+    "Relevant medical guidelines:\n",
+    "{context}\n",
+    "\n",
+    "Give personalized advice.\n",
+    "\"\"\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "id": "4800f8b8-93bc-41bb-8780-d7f6a3444dee",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "sample = df.iloc[0]\n",
+    "\n",
+    "profile = create_profile(sample)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "id": "9e5d91ce-0399-4e38-a740-a07c255def43",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Index(['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach',\n",
+      "       'exang', 'oldpeak', 'slope', 'ca', 'thal'],\n",
+      "      dtype='object')\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(X.columns)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "id": "534baaa1-83c8-4ce5-8be3-7c1af5e5085f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "X_sample = sample[X.columns]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 41,
+   "id": "12caf1f5-f317-4d31-8538-3e907c97003f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "X_sample = pd.DataFrame([sample[X.columns]])\n",
+    "prediction = model.predict(X_sample)[0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 49,
+   "id": "da8c0527-abcd-458c-ba8d-909e18f237bb",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "(1, 13)\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(X_sample.shape)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 51,
+   "id": "a153051e-b5d2-4265-97ec-fbede5225b48",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "if prediction == 1:\n",
+    "    risk = \"HIGH risk\"\n",
+    "else:\n",
+    "    risk = \"LOW risk\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 58,
+   "id": "fe503892-28bf-465b-a9ac-7c0fb5fc18d6",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import ollama\n",
+    "\n",
+    "def call_llm(prompt, system_prompt):\n",
+    "    response = ollama.chat(\n",
+    "        model='llama3',\n",
+    "        messages=[\n",
+    "            {\"role\": \"system\", \"content\": system_prompt},\n",
+    "            {\"role\": \"user\", \"content\": prompt}\n",
+    "        ]\n",
+    "    )\n",
+    "    return response['message']['content']\n",
+    "\n",
+    "SYSTEM_PROMPT_3 = \"You are a medical assistant.\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 60,
+   "id": "f12c6368-0795-4e5e-8f8e-a2a4e57f90db",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "prompt = build_rag_prompt(profile + \"\\nRisk: \" + risk, \"how to reduce cholesterol\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 62,
+   "id": "8260209a-ece5-459a-bedc-13a6886d2e24",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "response = call_llm(prompt, SYSTEM_PROMPT_3)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 63,
+   "id": "dae94fed-3f62-4e65-8bc0-d0360329b730",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "As your medical assistant, I'm here to help you take control of your cholesterol levels.\n",
+      "\n",
+      "Firstly, congratulations on having a low risk level! That's great news!\n",
+      "\n",
+      "Now, let's get down to business. Since your cholesterol levels are slightly elevated (233.0), we need to focus on making some lifestyle changes to bring them back under control.\n",
+      "\n",
+      "Here are some personalized tips I'd like to share with you:\n",
+      "\n",
+      "1. **Eat heart-healthy foods**: Focus on a balanced diet that includes plenty of fruits, vegetables, whole grains, lean proteins, and healthy fats (like avocado and olive oil). Try to limit your intake of saturated and trans fats by choosing low-fat or fat-free dairy products and lean meats.\n",
+      "2. **Sauté or bake instead of frying**: When cooking, opt for baking or sautéing foods with low-fat seasonings instead of deep-frying them with regular cheese or oils. This will help reduce your overall fat intake.\n",
+      "3. **Portion control is key**: Serve smaller portions of higher-calorie dishes and balance them out with more nutritious options. This will not only help with weight management but also reduce your calorie intake.\n",
+      "4. **Get moving and stay active**: Aim for at least 150 minutes of moderate-intensity physical activity or 75 minutes of vigorous-intensity physical activity per week. You can also incorporate strength training exercises to maintain a healthy weight.\n",
+      "5. **Quit smoking (if applicable)**: If you're a smoker, quitting is crucial to reducing your risk of heart disease and stroke. Your healthcare professional can help you with this process.\n",
+      "\n",
+      "Remember, making these lifestyle changes may not require taking medication, but it's essential to discuss your progress with your healthcare professional regularly. They can help you create a personalized plan tailored to your needs and provide ongoing support.\n",
+      "\n",
+      "You got this!\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 66,
+   "id": "81692b7c-c5d0-47ec-97ca-3804d3fa27bb",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Requirement already satisfied: PyPDF2 in /Users/sara/anaconda3/lib/python3.10/site-packages (3.0.1)\n",
+      "\n",
+      "\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m A new release of pip is available: \u001b[0m\u001b[31;49m26.0.1\u001b[0m\u001b[39;49m -> \u001b[0m\u001b[32;49m26.1\u001b[0m\n",
+      "\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m To update, run: \u001b[0m\u001b[32;49m/Users/sara/anaconda3/bin/python -m pip install --upgrade pip\u001b[0m\n"
+     ]
+    }
+   ],
+   "source": [
+    "import sys\n",
+    "!{sys.executable} -m pip install PyPDF2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 67,
+   "id": "7dbeffbb-d04d-4bc1-8e36-f17e08e3f5cc",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "pdf_path = \"How-Can-I-Improve-Cholesterol.pdf\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 70,
+   "id": "7b2819d9-1a79-4322-8715-b9b5c6acba4a",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from PyPDF2 import PdfReader\n",
+    "\n",
+    "def load_pdf(file_path):\n",
+    "    reader = PdfReader(file_path)\n",
+    "    text = \"\"\n",
+    "    for page in reader.pages:\n",
+    "        text += page.extract_text()\n",
+    "    return text"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 72,
+   "id": "227fd639-0ca3-4020-a37e-e6f0d6bfa6f5",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Lifestyle + Risk R eduction\n",
+      "Choleste rolANSWERS  \n",
+      "by hear t\n",
+      "What should I eat?\n",
+      "Focus on foods low in saturated and trans fats such as:\n",
+      "• A variety of fruits and vegetables.\n",
+      "• A variety of whole grain foods such as whole-grain bread, \n",
+      "cereal, pasta and brown rice. At least half of the servings should be whole grains.\n",
+      "• Fat-free and low-fat milk products or plant-based milk alternatives that have been fortified with vitamins A and D, such as oat, soy or almond milk. \n",
+      "• Skinless poultry and lean me\n"
+     ]
+    }
+   ],
+   "source": [
+    "pdf_text = load_pdf(pdf_path)\n",
+    "print(pdf_text[:500])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 74,
+   "id": "8f1c87fd-b245-4812-82db-3b9a28addb9b",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def retrieve_chroma(query, top_k=2):\n",
+    "    results = collection.query(\n",
+    "        query_texts=[query],\n",
+    "        n_results=top_k\n",
+    "    )\n",
+    "    return results[\"documents\"][0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 76,
+   "id": "053dca45-1026-4663-8d32-62cdbdbf5316",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "docs = retrieve_chroma(\"how to reduce cholesterol\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 78,
+   "id": "4456a378-014e-4e39-b870-96bf8ecfbe60",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def build_rag_prompt(profile, query):\n",
+    "    docs = retrieve_chroma(query)\n",
+    "    context = \"\\n\".join(docs)\n",
+    "\n",
+    "    prompt = f\"\"\"\n",
+    "You are a helpful medical assistant.\n",
+    "\n",
+    "Patient profile:\n",
+    "{profile}\n",
+    "\n",
+    "Relevant medical guidelines:\n",
+    "{context}\n",
+    "\n",
+    "Based on the above, give personalized advice.\n",
+    "\"\"\"\n",
+    "    return prompt"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 80,
+   "id": "455798f8-9033-4a62-9aa5-2f2467e3dcae",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "SYSTEM_PROMPT = \"\"\"\n",
+    "You are a medical assistant.\n",
+    "\n",
+    "ONLY answer medical-related questions.\n",
+    "If the user asks anything unrelated (movies, politics, etc),\n",
+    "respond with:\n",
+    "\"Sorry, I can only answer medical-related questions.\"\n",
+    "\"\"\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 82,
+   "id": "077d2bf7-b4df-48f7-aa3c-2f7d51e3aea0",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "SYSTEM_PROMPT_3 = \"You are a helpful medical assistant. Give clear and safe advice.\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 84,
+   "id": "966f6c82-4b13-448d-b4b9-d250c9c51d9a",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Requirement already satisfied: ollama in /Applications/anaconda3/lib/python3.12/site-packages (0.6.1)\n",
+      "Requirement already satisfied: httpx>=0.27 in /Applications/anaconda3/lib/python3.12/site-packages (from ollama) (0.27.0)\n",
+      "Requirement already satisfied: pydantic>=2.9 in /Applications/anaconda3/lib/python3.12/site-packages (from ollama) (2.13.0)\n",
+      "Requirement already satisfied: anyio in /Applications/anaconda3/lib/python3.12/site-packages (from httpx>=0.27->ollama) (4.2.0)\n",
+      "Requirement already satisfied: certifi in /Applications/anaconda3/lib/python3.12/site-packages (from httpx>=0.27->ollama) (2026.1.4)\n",
+      "Requirement already satisfied: httpcore==1.* in /Applications/anaconda3/lib/python3.12/site-packages (from httpx>=0.27->ollama) (1.0.2)\n",
+      "Requirement already satisfied: idna in /Applications/anaconda3/lib/python3.12/site-packages (from httpx>=0.27->ollama) (3.7)\n",
+      "Requirement already satisfied: sniffio in /Applications/anaconda3/lib/python3.12/site-packages (from httpx>=0.27->ollama) (1.3.0)\n",
+      "Requirement already satisfied: h11<0.15,>=0.13 in /Applications/anaconda3/lib/python3.12/site-packages (from httpcore==1.*->httpx>=0.27->ollama) (0.14.0)\n",
+      "Requirement already satisfied: annotated-types>=0.6.0 in /Applications/anaconda3/lib/python3.12/site-packages (from pydantic>=2.9->ollama) (0.6.0)\n",
+      "Requirement already satisfied: pydantic-core==2.46.0 in /Applications/anaconda3/lib/python3.12/site-packages (from pydantic>=2.9->ollama) (2.46.0)\n",
+      "Requirement already satisfied: typing-extensions>=4.14.1 in /Applications/anaconda3/lib/python3.12/site-packages (from pydantic>=2.9->ollama) (4.15.0)\n",
+      "Requirement already satisfied: typing-inspection>=0.4.2 in /Applications/anaconda3/lib/python3.12/site-packages (from pydantic>=2.9->ollama) (0.4.2)\n"
+     ]
+    }
+   ],
+   "source": [
+    "!pip install ollama\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 86,
+   "id": "738aba85-3799-4b33-9659-8691d6b42587",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "OK\n"
+     ]
+    }
+   ],
+   "source": [
+    "import ollama\n",
+    "print(\"OK\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 88,
+   "id": "1bd49ddd-c2a5-4d15-8410-c09b357b9e02",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def call_llm(prompt, system_prompt):\n",
+    "    response = ollama.chat(\n",
+    "        model=\"llama3\",\n",
+    "        messages=[\n",
+    "            {\"role\": \"system\", \"content\": system_prompt},\n",
+    "            {\"role\": \"user\", \"content\": prompt}\n",
+    "        ]\n",
+    "    )\n",
+    "    return response[\"message\"][\"content\"]\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 90,
+   "id": "8077290b-87c0-4f0f-9940-57daaf27ee95",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "=== PATIENT PROFILE ===\n",
+      "\n",
+      "Patient is 63 years old.\n",
+      "Cholesterol: 233.0\n",
+      "Blood pressure: 145.0\n",
+      "Max heart rate: 150.0\n",
+      "\n",
+      "\n",
+      "=== RISK ===\n",
+      "LOW risk\n",
+      "\n",
+      "=== AI RESPONSE ===\n",
+      "Thank you for sharing your health information! As a medical assistant, I'm happy to provide you with some personalized advice to help improve your cholesterol levels.\n",
+      "\n",
+      "Firstly, it's great to hear that your risk is classified as low. However, it's still important to take proactive steps to manage your cholesterol and overall heart health.\n",
+      "\n",
+      "Based on the guidelines provided, here are some practical tips to help you improve your cholesterol:\n",
+      "\n",
+      "1. **Eat more plant-based meals**: Try to incorporate more fruits, vegetables, whole grains, and legumes into your diet. These foods tend to be lower in saturated fats and higher in fiber, which can help boost your good cholesterol (HDL).\n",
+      "2. **Cook with healthy oils**: Instead of using butter or other high-fat oils, try cooking with healthier options like olive oil, avocado oil, or grapeseed oil.\n",
+      "3. **Select lean protein sources**: Opt for lean protein sources like poultry, fish, and plant-based alternatives like beans and lentils. Limit your consumption of processed meats and full-fat dairy products.\n",
+      "4. **Choose low-fat, low-sodium cheese options**: When you do consume cheese, opt for lower-fat versions or part-skim mozzarella.\n",
+      "5. **Watch portion sizes**: Be mindful of the serving sizes when consuming higher-calorie foods. Try to serve smaller portions and balance them out with nutrient-dense foods.\n",
+      "\n",
+      "Remember, it's essential to follow a personalized plan developed by your healthcare professional, as they can provide more tailored guidance based on your specific health needs.\n",
+      "\n",
+      "By incorporating these simple changes into your daily routine, you'll be taking a positive step towards improving your cholesterol levels and overall cardiovascular health. If you have any questions or concerns, please don't hesitate to reach out to your healthcare provider for further guidance.\n",
+      "\n",
+      "Keep in mind that it's always important to consult with your healthcare professional before making any significant changes to your diet or exercise routine.\n"
+     ]
+    }
+   ],
+   "source": [
+    "# sample input\n",
+    "sample = df.iloc[0]\n",
+    "\n",
+    "# create profile\n",
+    "profile = create_profile(sample)\n",
+    "\n",
+    "# prepare ML input\n",
+    "X_sample = sample[X.columns]\n",
+    "X_sample = pd.DataFrame([X_sample])\n",
+    "\n",
+    "# prediction\n",
+    "prediction = model.predict(X_sample)[0]\n",
+    "\n",
+    "# risk label\n",
+    "if prediction == 1:\n",
+    "    risk = \"HIGH risk\"\n",
+    "else:\n",
+    "    risk = \"LOW risk\"\n",
+    "\n",
+    "# build RAG prompt\n",
+    "prompt = build_rag_prompt(profile + \"\\nRisk: \" + risk, \"how to reduce cholesterol\")\n",
+    "\n",
+    "\n",
+    "response = call_llm(prompt, SYSTEM_PROMPT_3)\n",
+    "\n",
+    "# output\n",
+    "print(\"=== PATIENT PROFILE ===\")\n",
+    "print(profile)\n",
+    "\n",
+    "print(\"\\n=== RISK ===\")\n",
+    "print(risk)\n",
+    "\n",
+    "print(\"\\n=== AI RESPONSE ===\")\n",
+    "print(response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 91,
+   "id": "2a2d4c33-c471-4948-bf22-d48e677505ce",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Risk Probability: 0.19\n",
+      "Prediction: 0\n",
+      "\n",
+      "Patient is 63 years old.\n",
+      "Cholesterol: 233.0\n",
+      "Blood pressure: 145.0\n",
+      "Max heart rate: 150.0\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "sample = df.iloc[0]\n",
+    "\n",
+    "#\n",
+    "profile = create_profile(sample)\n",
+    "\n",
+    "# feature train\n",
+    "X_sample = sample[X.columns]\n",
+    "\n",
+    "#  DataFrame\n",
+    "X_sample = pd.DataFrame([X_sample])\n",
+    "\n",
+    "# probability\n",
+    "risk_prob = model.predict_proba(X_sample)[0][1]\n",
+    "\n",
+    "# threshold \n",
+    "prediction = int(risk_prob > 0.3)\n",
+    "\n",
+    "print(f\"Risk Probability: {risk_prob:.2f}\")\n",
+    "print(\"Prediction:\", prediction)\n",
+    "print(profile)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 92,
+   "id": "89fd9300-5368-41d8-9a78-df07090b2baf",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Thank you for sharing your patient profile! As a medical assistant, I'm here to help you take steps towards improving your cholesterol levels.\n",
+      "\n",
+      "Since you're considered LOW risk, it's great news that we can focus on lifestyle changes rather than medication. Here are some personalized tips based on the relevant guidelines:\n",
+      "\n",
+      "1. **Cooking methods**: To reduce your fat intake, try cooking methods like steaming, boiling, or baking instead of frying. When you do need to cook with oil, choose healthier options like olive or avocado oil.\n",
+      "2. **Portion control**: Serve smaller portions to keep your calorie intake in check. This will also help you avoid overeating and reduce the risk of weight gain.\n",
+      "3. **Cheese choices**: Opt for low-fat, low-sodium cheese alternatives or reduced-fat versions of your favorite cheeses. You can still enjoy cheese as part of a balanced diet!\n",
+      "4. **Dietary changes**: Focus on a well-rounded diet that includes plenty of fruits, vegetables, whole grains, lean proteins, and healthy fats like those found in nuts and seeds.\n",
+      "5. **Stay hydrated**: Drink plenty of water throughout the day to help with digestion and overall health.\n",
+      "\n",
+      "Remember to consult with your healthcare professional before making any significant changes to your diet or exercise routine. They can provide personalized guidance based on your individual needs and health status.\n",
+      "\n",
+      "By incorporating these lifestyle modifications, you'll be taking a proactive approach to improving your cholesterol levels. Stay committed, and we'll work together to achieve your health goals!\n"
+     ]
+    }
+   ],
+   "source": [
+    "if prediction == 1:\n",
+    "    risk = \"HIGH risk\"\n",
+    "else:\n",
+    "    risk = \"LOW risk\"\n",
+    "\n",
+    "prompt = build_rag_prompt(profile + \"\\n\" + risk, \"how to reduce cholesterol\")\n",
+    "\n",
+    "response = call_llm(prompt, SYSTEM_PROMPT_3)\n",
+    "print(response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 93,
+   "id": "7402f869-61bc-46e0-adab-404f08789169",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def build_rag_prompt(profile, docs):\n",
+    "    context = \" \".join(docs)\n",
+    "\n",
+    "    return f\"\"\"\n",
+    "Patient Profile:\n",
+    "{profile}\n",
+    "\n",
+    "Medical Guidelines:\n",
+    "{context}\n",
+    "\n",
+    "Give personalized medical advice.\n",
+    "\"\"\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 94,
+   "id": "c2c91b03-3b40-41c8-9bd1-a659aa75c8e3",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "SYSTEM_PROMPT_1 = \"You are a helpful medical assistant.\"\n",
+    "\n",
+    "SYSTEM_PROMPT_2 = \"\"\"\n",
+    "You are a professional medical doctor.\n",
+    "Give clear, structured, and accurate medical advice.\n",
+    "Use bullet points.\n",
+    "\"\"\"\n",
+    "\n",
+    "SYSTEM_PROMPT_3 = \"\"\"\n",
+    "You are a medical assistant.\n",
+    "\n",
+    "Only answer medical-related questions.\n",
+    "If the question is not medical, say:\n",
+    "\"I can only answer medical-related questions.\"\n",
+    "\"\"\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 95,
+   "id": "2ebf4397-46fb-434b-8431-42be37d60821",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "=== PROMPT COMPARISON ===\n",
+      "\n",
+      "---- Prompt 1 ----\n",
+      "Thank you for sharing your patient profile with me! As a medical assistant, I'm happy to help you take steps towards improving your cholesterol levels.\n",
+      "\n",
+      "Given your LOW risk category, it's great that we can focus on making lifestyle changes to support your overall health. Based on the relevant medical guidelines, here are some personalized tips that may help:\n",
+      "\n",
+      "1. **Cook smart**: Try to limit or avoid frying foods and opt for healthier cooking methods like baking, grilling, roasting, or sautéing with a small amount of oil. This can help reduce saturated fats in your diet.\n",
+      "2. **Portion control**: When it comes to higher-calorie dishes, try serving smaller portions to keep your calorie intake in check. You can also consider portioning out snacks and meals in advance to avoid overeating.\n",
+      "3. **Choose low-fat, low-sodium options**: Instead of reaching for regular cheese, look for lower-fat or reduced-sodium alternatives. This can help reduce your overall fat and sodium intake.\n",
+      "\n",
+      "Remember, it's not just about the food – physical activity is also important! Aim for at least 30 minutes of moderate-intensity exercise per day to support your heart health.\n",
+      "\n",
+      "It's essential to note that if you're concerned about your cholesterol levels or have questions about how to implement these changes, please discuss them with your healthcare professional. They can help create a personalized plan tailored to your needs and monitor your progress.\n",
+      "\n",
+      "By making these lifestyle adjustments, you'll be taking proactive steps towards improving your cholesterol levels and overall well-being!\n",
+      "\n",
+      "How do these suggestions sound? Do you have any specific questions or concerns about implementing these changes?\n",
+      "\n",
+      "---- Prompt 2 ----\n",
+      "As a medical doctor, I'd be happy to provide personalized advice based on your patient profile. Here are some actionable steps you can take to improve your cholesterol levels:\n",
+      "\n",
+      "**Dietary Changes:**\n",
+      "\n",
+      "• Follow the guidelines suggested by your healthcare provider:\n",
+      "\t+ Aim for brown or sauté foods instead of frying.\n",
+      "\t+ Serve smaller portions of higher-calorie dishes.\n",
+      "\t+ Opt for low-fat, low-sodium options instead of regular cheese.\n",
+      "• Consider increasing your intake of:\n",
+      "\t+ Soluble fiber-rich foods like oatmeal, barley, and fruits (especially apples, berries, and pears).\n",
+      "\t+ Nuts and seeds, such as almonds, pumpkin seeds, and chia seeds.\n",
+      "\n",
+      "**Lifestyle Changes:**\n",
+      "\n",
+      "• Regular physical activity can help improve cholesterol levels. Aim for at least 150 minutes of moderate-intensity exercise or 75 minutes of vigorous-intensity exercise per week.\n",
+      "• Maintain a healthy weight through a combination of diet and exercise.\n",
+      "• Consider stress-reducing techniques like meditation, yoga, or deep breathing exercises to manage stress.\n",
+      "\n",
+      "**Additional Recommendations:**\n",
+      "\n",
+      "• Schedule regular check-ups with your healthcare provider to monitor your cholesterol levels and blood pressure. This will help you stay on track with your treatment plan.\n",
+      "• If necessary, consider taking medication as directed by your healthcare provider. Don't hesitate to discuss any concerns or questions you have about your medications.\n",
+      "\n",
+      "Remember, it's essential to work closely with your healthcare provider to develop a personalized plan to improve your cholesterol levels. By making these lifestyle changes and potentially adding medication, you can take control of your health and reduce your risk factors for cardiovascular disease.\n",
+      "\n",
+      "---- Prompt 3 ----\n",
+      "Based on your patient profile, since you are classified as having a LOW risk, we can focus on making lifestyle changes to help improve your cholesterol levels. Given your current cholesterol level of 233.0, it's essential to make some adjustments.\n",
+      "\n",
+      "Firstly, I would recommend following the dietary guidelines provided:\n",
+      "\n",
+      "1. Aay or sauté foods: Choose healthier cooking methods that don't require a lot of oil.\n",
+      "2. Serve smaller portions of higher-calorie dishes: Be mindful of your food intake and control your portion sizes.\n",
+      "3. Use low-fat, low-sodium options instead of regular cheese: Opt for lower-fat dairy products to reduce the overall fat content in your diet.\n",
+      "\n",
+      "Additionally, I would suggest considering some other lifestyle changes:\n",
+      "\n",
+      "1. Increase physical activity: Aim for at least 30 minutes of moderate-intensity exercise or 150 minutes of moderate-intensity aerobic activity per week.\n",
+      "2. Maintain a healthy weight: If you're overweight or obese, losing weight can help improve your cholesterol levels.\n",
+      "3. Limit your intake of saturated and trans fats: Focus on whole grains, fruits, vegetables, lean proteins, and low-fat dairy products.\n",
+      "\n",
+      "It's also important to note that, as your healthcare professional indicated, it may be necessary to take medication in the future to further improve your cholesterol levels. However, let's focus on making lifestyle changes first and see how that affects your numbers before considering medication.\n",
+      "\n",
+      "Remember to discuss any concerns or questions you have with your healthcare professional and work together to create a personalized plan to improve your cholesterol levels.\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"=== PROMPT COMPARISON ===\\n\")\n",
+    "\n",
+    "print(\"---- Prompt 1 ----\")\n",
+    "print(call_llm(prompt, SYSTEM_PROMPT_1))\n",
+    "\n",
+    "print(\"\\n---- Prompt 2 ----\")\n",
+    "print(call_llm(prompt, SYSTEM_PROMPT_2))\n",
+    "\n",
+    "print(\"\\n---- Prompt 3 ----\")\n",
+    "print(call_llm(prompt, SYSTEM_PROMPT_3))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 104,
+   "id": "13f7fe03-f134-4e48-beeb-d87fac17d1d4",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def call_llm(prompt, system_prompt):\n",
+    "    response = ollama.chat(\n",
+    "        model=\"llama3\",\n",
+    "        messages=[\n",
+    "            {\"role\": \"system\", \"content\": system_prompt},\n",
+    "            {\"role\": \"user\", \"content\": prompt}\n",
+    "        ]\n",
+    "    )\n",
+    "    return response[\"message\"][\"content\"]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 106,
+   "id": "971584d7-6b9b-4469-9e14-140c48e5d258",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Reducing cholesterol levels is an important step in maintaining good cardiovascular health! As a medical assistant, I'd be happy to share some tips on how to do so:\n",
+      "\n",
+      "1. **Dietary Changes**:\n",
+      "\t* Increase your intake of soluble fiber-rich foods like oats, barley, fruits (especially apples and berries), and vegetables (especially broccoli, carrots, and Brussels sprouts).\n",
+      "\t* Choose lean protein sources like poultry, fish, and plant-based options.\n",
+      "\t* Limit or avoid processed meats, sweets, and refined carbohydrates.\n",
+      "2. **Healthy Fats**:\n",
+      "\t* Incorporate healthy fats like avocado, nuts (almonds, walnuts), and seeds (chia, flax) into your diet.\n",
+      "3. **Low-Fat Dairy**:\n",
+      "\t* Opt for low-fat or fat-free dairy products to reduce saturated fat intake.\n",
+      "4. **Plant-Based Milks**:\n",
+      "\t* Consider switching to plant-based milks like almond milk, soy milk, or oat milk if you're lactose intolerant or prefer a non-dairy option.\n",
+      "5. **Exercise Regularly**:\n",
+      "\t* Aim for at least 150 minutes of moderate-intensity exercise or 75 minutes of vigorous-intensity exercise per week.\n",
+      "6. **Maintain a Healthy Weight**:\n",
+      "\t* If you're overweight or obese, losing weight can help lower your cholesterol levels.\n",
+      "7. **Limit Cholesterol-Raising Foods**:\n",
+      "\t* Avoid foods high in saturated and trans fats, such as:\n",
+      "\t\t+ Processed meats (hot dogs, sausages)\n",
+      "\t\t+ Full-fat dairy products\n",
+      "\t\t+ Fried foods and baked goods\n",
+      "8. **Stress Management**:\n",
+      "\t* High levels of stress can increase cholesterol production. Engage in stress-reducing activities like yoga, meditation, or deep breathing exercises.\n",
+      "9. **Consider Supplements**:\n",
+      "\t* If you're having trouble achieving these lifestyle changes on your own, consider consulting with a healthcare professional about adding supplements like psyllium husk or plant sterols to your diet.\n",
+      "\n",
+      "Remember to always consult with your healthcare provider before making significant changes to your diet or starting any new supplement regimen. They can help determine the best course of action for you based on your individual health needs and medical history.\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(call_llm(\"How to reduce cholesterol?\", SYSTEM_PROMPT_1))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 107,
+   "id": "30f62441-6433-467a-bd65-976d406cea61",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "As a medical doctor, I'm happy to provide you with evidence-based guidance on how to reduce your cholesterol levels. Here's a comprehensive list of tips to help you get started:\n",
+      "\n",
+      "**Lifestyle Changes:**\n",
+      "\n",
+      "* **Exercise regularly**: Engage in at least 150 minutes of moderate-intensity aerobic exercise or 75 minutes of vigorous-intensity aerobic exercise per week.\n",
+      "\t+ Examples: Brisk walking, cycling, swimming, jogging, or dancing\n",
+      "* **Maintain a healthy weight**: Aim for a body mass index (BMI) between 18.5 and 24.9\n",
+      "* **Quit smoking**: Smoking is a significant risk factor for high cholesterol\n",
+      "* **Limit processed foods**: Focus on whole, unprocessed foods like fruits, vegetables, whole grains, lean proteins, and healthy fats\n",
+      "\n",
+      "**Dietary Changes:**\n",
+      "\n",
+      "* **Increase soluble fiber intake**: Aim for 25-30 grams of soluble fiber per day from sources like:\n",
+      "\t+ Oatmeal\n",
+      "\t+ Fruits (especially apples, berries, and pears)\n",
+      "\t+ Vegetables (especially carrots, brussels sprouts, and sweet potatoes)\n",
+      "* **Eat more plant-based protein**: Include protein-rich foods like:\n",
+      "\t+ Legumes (lentils, chickpeas, black beans)\n",
+      "\t+ Nuts and seeds (almonds, walnuts, chia seeds, flaxseeds)\n",
+      "\t+ Fatty fish (salmon, tuna, mackerel) 2-3 times a week\n",
+      "* **Choose healthy fats**: Incorporate sources like:\n",
+      "\t+ Avocados\n",
+      "\t+ Olive oil\n",
+      "\t+ Fatty fruits (like avocados and olives)\n",
+      "\n",
+      "**Supplements:**\n",
+      "\n",
+      "* **Psyllium husk**: A soluble fiber supplement that can help lower LDL cholesterol\n",
+      "* **Plant sterols and stanols**: Found in fortified foods or supplements, these can help reduce LDL cholesterol\n",
+      "\n",
+      "**Medications (if necessary):**\n",
+      "\n",
+      "* **Statins**: If lifestyle changes aren't enough to achieve target cholesterol levels, your doctor may prescribe statins. Common examples include atorvastatin, simvastatin, and rosuvastatin.\n",
+      "* **Bile acid sequestrants**: Medications like cholestyramine or colesevelam can help lower LDL cholesterol.\n",
+      "\n",
+      "**Additional Tips:**\n",
+      "\n",
+      "* **Get regular check-ups**: Monitor your cholesterol levels and overall health with regular doctor's appointments\n",
+      "* **Manage stress**: High stress levels can raise cholesterol levels; engage in stress-reducing activities like meditation, yoga, or deep breathing exercises\n",
+      "* **Limit saturated and trans fats**: Avoid foods high in these types of fat, as they can increase LDL cholesterol\n",
+      "\n",
+      "Remember to always consult with your healthcare provider before making significant changes to your diet or supplement routine. They can help you develop a personalized plan tailored to your specific needs and health status.\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(call_llm(\"How to reduce cholesterol?\", SYSTEM_PROMPT_2))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 108,
+   "id": "4710e1f0-1c07-4968-9f18-07fe1b9fb26c",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "I can only answer medical-related questions.\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(call_llm(\"Tell me about movies\", SYSTEM_PROMPT_3))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 110,
+   "id": "49f5448b-9724-4150-9986-1fe28a5eafec",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def build_rag_prompt(profile, docs):\n",
+    "    context = \"\\n\".join(docs)\n",
+    "\n",
+    "    prompt = f\"\"\"\n",
+    "Patient Information:\n",
+    "{profile}\n",
+    "\n",
+    "Medical Guidelines:\n",
+    "{context}\n",
+    "\n",
+    "Based on the above, give personalized medical advice.\n",
+    "\"\"\"\n",
+    "    return prompt"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 114,
+   "id": "59db46ef-270a-4e26-a827-44b2d73ff594",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "rag_outputs = []\n",
+    "baseline_outputs = []"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 116,
+   "id": "958f0ebc-36f5-4c45-93ef-bf79d2a246bc",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "baseline_prompt = f\"\"\"\n",
+    "You are a medical assistant.\n",
+    "\n",
+    "Patient Profile:\n",
+    "{profile}\n",
+    "\n",
+    "Give advice.\n",
+    "\"\"\"\n",
+    "\n",
+    "baseline_response = call_llm(baseline_prompt, SYSTEM_PROMPT_3)\n",
+    "baseline_outputs.append(baseline_response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 117,
+   "id": "5b0af979-5e24-416d-b874-6bebf2a20f09",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "rag_prompt = build_rag_prompt(profile, \"how to reduce cholesterol\")\n",
+    "rag_response = call_llm(rag_prompt, SYSTEM_PROMPT_3)\n",
+    "rag_outputs.append(rag_response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 118,
+   "id": "f17d7b98-ee27-4520-b2c7-6bb14a6fcf91",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "=== BASELINE ===\n",
+      "Based on the patient's profile, I would advise them to take steps to manage their cholesterol and blood pressure levels.\n",
+      "\n",
+      "Firstly, given the high cholesterol level of 233.0, I recommend that the patient discuss with their healthcare provider the possibility of starting a statin medication or adjusting their current regimen to better control their cholesterol. Additionally, they should consider incorporating lifestyle changes such as:\n",
+      "\n",
+      "* Eating a heart-healthy diet rich in fruits, vegetables, whole grains, and lean proteins\n",
+      "* Increasing physical activity levels to at least 30 minutes per day\n",
+      "* Losing weight if necessary (based on BMI)\n",
+      "* Reducing or avoiding foods high in saturated fats, cholesterol, and dietary cholesterol\n",
+      "\n",
+      "Regarding blood pressure, the reading of 145.0 is considered elevated. I would suggest that the patient work with their healthcare provider to develop a plan to lower their blood pressure through lifestyle changes such as:\n",
+      "\n",
+      "* Engaging in regular physical activity\n",
+      "* Maintaining a healthy weight\n",
+      "* Limiting sodium intake and increasing potassium-rich foods\n",
+      "* Practicing stress-reducing techniques like meditation or deep breathing\n",
+      "\n",
+      "It's also important for the patient to continue monitoring their blood pressure regularly at home and reporting any concerns to their healthcare provider.\n",
+      "\n",
+      "Given the max heart rate of 150.0, I would encourage the patient to engage in regular aerobic exercise such as brisk walking, swimming, or cycling to help improve cardiovascular health and reduce risk of cardiovascular events.\n",
+      "\n",
+      "It's essential for the patient to work closely with their healthcare provider to develop a personalized plan to manage their cholesterol and blood pressure levels. Regular follow-ups and monitoring will be crucial to track progress and make any necessary adjustments.\n",
+      "\n",
+      "=== RAG ===\n",
+      "Thank you for providing the patient's information. Based on their cholesterol level of 233.0 and blood pressure of 145.0, I would recommend that they take immediate action to reduce their risk factors.\n",
+      "\n",
+      "Firstly, with a cholesterol level above 200 mg/dL, it is recommended that the patient undergo further testing to determine the underlying cause of this elevation. This may include tests such as lipoprotein profiles or genetic testing.\n",
+      "\n",
+      "In the meantime, I would advise the patient to make lifestyle changes to help lower their cholesterol levels naturally. These could include:\n",
+      "\n",
+      "* Increasing their physical activity level to at least 150 minutes per week\n",
+      "* Following a Mediterranean-style diet that is low in saturated and trans fats, high in fiber, and rich in fruits, vegetables, and whole grains\n",
+      "* Maintaining a healthy weight through a combination of diet and exercise\n",
+      "\n",
+      "Additionally, I would recommend that the patient consider taking a statin medication to help lower their cholesterol levels. The goal should be to get their LDL (\"bad\") cholesterol level below 100 mg/dL.\n",
+      "\n",
+      "As for their blood pressure, with a reading of 145.0, it is slightly elevated but still within the normal range. However, it's essential to monitor this closely and make lifestyle changes to prevent further increases. I would recommend that the patient:\n",
+      "\n",
+      "* Limit their sodium intake to less than 2,300 milligrams per day\n",
+      "* Increase their potassium-rich foods like bananas, leafy greens, and sweet potatoes to help balance out their blood pressure\n",
+      "* Engage in regular physical activity and stress-reducing techniques like yoga or meditation\n",
+      "\n",
+      "It's also essential for the patient to work with their healthcare provider to develop a personalized plan that takes into account their medical history, lifestyle, and other factors. By making these changes, they can significantly reduce their risk of developing cardiovascular disease and other complications.\n",
+      "\n",
+      "Please note that this is not meant to replace professional medical advice. The patient should consult with their healthcare provider before starting any new treatments or making significant lifestyle changes.\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"=== BASELINE ===\")\n",
+    "print(baseline_outputs[0])\n",
+    "\n",
+    "print(\"\\n=== RAG ===\")\n",
+    "print(rag_outputs[0])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 119,
+   "id": "78b8db1e-b6b8-40c0-8035-fd5332e01e4d",
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Predicted Risk Probability: 0.19\n"
+     ]
+    }
+   ],
+   "source": [
+    "#  FINAL RAG + ML + LLM PIPELINE \n",
+    "sample = df.iloc[0]\n",
+    "\n",
+    "#  Profile\n",
+    "sample = df.iloc[0]\n",
+    "\n",
+    "# Profile\n",
+    "profile = sample[\"profile_text\"]\n",
+    "\n",
+    "#  ML prediction \n",
+    "X_sample = sample[X.columns]\n",
+    "X_sample = pd.DataFrame([X_sample])\n",
+    "\n",
+    "risk_prob = model.predict_proba(X_sample)[0][1]\n",
+    "\n",
+    "print(f\"Predicted Risk Probability: {risk_prob:.2f}\")\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 120,
+   "id": "47a75989-80c9-4e9a-b385-9bbb220988d3",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#basline\n",
+    "\n",
+    "\n",
+    "baseline_prompt = f\"\"\"\n",
+    "\n",
+    "You are a medical assistant.\n",
+    "\n",
+    "Patient Profile:\n",
+    "\n",
+    "{profile}\n",
+    "\n",
+    "Predicted risk probability: {risk_prob:.2f}\n",
+    "\n",
+    "Provide general lifestyle advice for heart health.\n",
+    "\n",
+    "\"\"\"\n",
+    "\n",
+    "baseline_response = call_llm(baseline_prompt, SYSTEM_PROMPT_1)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 121,
+   "id": "74b14668-f073-4d40-8e0f-e537ccc48bca",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Thank you for sharing the patient's profile! Based on their cholesterol and blood pressure levels, as well as their predicted risk probability, it's essential to provide personalized lifestyle advice for optimal heart health. Here are some recommendations:\n",
+      "\n",
+      "1. **Dietary Changes**:\n",
+      "\t* Encourage a balanced diet rich in whole grains, fruits, vegetables, lean proteins, and healthy fats (e.g., avocado, olive oil).\n",
+      "\t* Suggest reducing or avoiding saturated and trans fats by limiting red meat consumption and choosing healthier alternatives.\n",
+      "2. **Physical Activity**:\n",
+      "\t* Recommend at least 150 minutes of moderate-intensity aerobic exercise per week, such as brisk walking, cycling, or swimming.\n",
+      "\t* Encourage strength training exercises 2-3 times a week to improve overall cardiovascular fitness.\n",
+      "3. **Weight Management**:\n",
+      "\t* Suggest maintaining a healthy body mass index (BMI) through portion control and regular physical activity.\n",
+      "4. **Stress Reduction**:\n",
+      "\t* Recommend relaxation techniques, such as deep breathing exercises, yoga, or meditation, to manage stress levels.\n",
+      "5. **Sleep Hygiene**:\n",
+      "\t* Encourage 7-9 hours of sleep per night to help regulate blood pressure and overall cardiovascular health.\n",
+      "6. **Lipid-Lowering Measures**:\n",
+      "\t* If necessary, recommend a statin medication (if prescribed by the patient's healthcare provider) to manage cholesterol levels.\n",
+      "7. **Blood Pressure Management**:\n",
+      "\t* Encourage lifestyle changes to control blood pressure, such as regular exercise, stress reduction, and healthy diet choices.\n",
+      "8. **Regular Check-Ups**:\n",
+      "\t* Emphasize the importance of regular health check-ups with a healthcare provider to monitor progress and make adjustments as needed.\n",
+      "\n",
+      "By implementing these lifestyle modifications, our patient can significantly reduce their risk factors for heart disease and promote overall cardiovascular well-being.\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(baseline_response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 128,
+   "id": "27692ec3-8938-4179-860b-b5c7cf6bc861",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "=== RAG OUTPUT ===\n",
+      "\n",
+      "**Personalized Medical Advice for a 63-year-old Individual**\n",
+      "\n",
+      "Given your cholesterol level of 233.0, blood pressure of 145.0, and predicted risk probability of 0.19, it is essential to take proactive steps to improve your lipid profile and cardiovascular health. Here are some personalized recommendations:\n",
+      "\n",
+      "**Dietary Changes:**\n",
+      "\n",
+      "• **Increase healthy fats:** Incorporate more avocados, olive oil, nuts, and fatty fish like salmon into your diet.\n",
+      "• **Choose brown over white:** Prefer whole grain bread, brown rice, and pasta to increase fiber intake.\n",
+      "• **Cook with less oil:** Adhere to the medical guidelines of sautéing or using low-fat cooking methods.\n",
+      "• **Serve smaller portions:** Divide higher-calorie dishes into smaller portions to maintain a healthy caloric intake.\n",
+      "\n",
+      "**Additional Recommendations:**\n",
+      "\n",
+      "• **Incorporate more plant-based foods:** Aim for 5-7 servings of fruits and vegetables daily to reduce cholesterol levels.\n",
+      "• **Choose lean protein sources:** Opt for poultry, fish, or plant-based options like beans and lentils instead of red meat.\n",
+      "• **Limit added sugars:** Restrict sugary drinks and snacks to minimize their negative impact on your lipid profile.\n",
+      "\n",
+      "**Pharmacological Intervention:**\n",
+      "\n",
+      "Based on your predicted risk probability (0.19), it appears that you may not require immediate pharmacological intervention. However, it is crucial to work closely with your healthcare professional to develop a personalized plan for improving your cholesterol levels.\n",
+      "\n",
+      "**Additional Tips:**\n",
+      "\n",
+      "• **Stay hydrated:** Drink plenty of water throughout the day to help maintain blood pressure and overall health.\n",
+      "• **Get regular exercise:** Aim for at least 30 minutes of moderate-intensity physical activity daily, such as brisk walking or cycling. Consult with your healthcare professional before starting any new exercise program.\n",
+      "\n",
+      "**Schedule a Follow-up:**\n",
+      "\n",
+      "It is essential to schedule follow-up appointments with your healthcare professional to monitor your progress and make adjustments to your plan as needed. Regular check-ins will also allow you to address any concerns or questions you may have about improving your cholesterol levels.\n",
+      "\n",
+      "Remember, making these lifestyle changes and working closely with your healthcare team can help reduce your risk of cardiovascular disease and improve your overall health outcomes.\n"
+     ]
+    }
+   ],
+   "source": [
+    "#rag\n",
+    "query = \"how to reduce cholesterol and heart disease risk\"\n",
+    "docs = retrieve_chroma(query)\n",
+    "\n",
+    "prompt = build_rag_prompt(\n",
+    "    profile + f\"\\nPredicted risk probability: {risk_prob:.2f}\",\n",
+    "    docs\n",
+    ")\n",
+    "\n",
+    "rag_response = call_llm(prompt, SYSTEM_PROMPT_2)\n",
+    "\n",
+    "print(\"\\n=== RAG OUTPUT ===\\n\")\n",
+    "print(rag_response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 129,
+   "id": "fe9b9853-2b52-414a-b5a2-5fba419e199c",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "context = \"\\n\".join(docs)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 130,
+   "id": "9b7c3c7d-22fd-428f-95f0-f15c4d0190cb",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "restricted_prompt = f\"\"\"\n",
+    "You are a medical assistant.\n",
+    "\n",
+    "ONLY answer medical-related questions.\n",
+    "If the question is not medical, say:\n",
+    "\"Sorry, I can only answer medical-related questions.\"\n",
+    "\n",
+    "Patient profile:\n",
+    "{profile}\n",
+    "\n",
+    "Medical guidelines:\n",
+    "{context}\n",
+    "\n",
+    "Predicted risk probability: {risk_prob:.2f}\n",
+    "\n",
+    "Give personalized medical advice.\n",
+    "\"\"\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 131,
+   "id": "e73e23da-e7c0-4067-b065-50d1fb610390",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "=== RESTRICTED OUTPUT ===\n",
+      "\n",
+      "Based on the patient's cholesterol level of 233.0, it appears they are at risk for developing cardiovascular disease. As a medical assistant, I would recommend that they make some lifestyle changes to help improve their cholesterol levels.\n",
+      "\n",
+      "Firstly, it is essential to note that the patient does not need to take medication at this time. However, it's crucial to work with their healthcare professional to create a personalized plan to lower their cholesterol levels and reduce their risk of developing cardiovascular disease.\n",
+      "\n",
+      "Here are some dietary recommendations I would make based on the medical guidelines:\n",
+      "\n",
+      "* Limit or avoid consuming foods high in saturated fats and cholesterol, such as fried foods, processed meats, and full-fat dairy products.\n",
+      "* Instead, focus on eating more plant-based meals, which can help lower cholesterol levels. This includes a variety of fruits, vegetables, whole grains, lean proteins, and healthy fats like avocado and nuts.\n",
+      "* Follow the guidelines provided: aim to brown or sauté foods instead of frying them, serve smaller portions of higher-calorie dishes, and use low-fat, low-sodium options instead of regular cheese.\n",
+      "\n",
+      "In addition to dietary changes, regular physical activity can also help improve cholesterol levels. I would recommend aiming for at least 150 minutes of moderate-intensity exercise or 75 minutes of vigorous-intensity exercise per week.\n",
+      "\n",
+      "Finally, it's essential to monitor the patient's blood pressure regularly and work towards achieving a target goal of less than 140/90 mmHg. With a predicted risk probability of 0.19, I would also emphasize the importance of maintaining a healthy lifestyle to reduce their overall cardiovascular risk.\n",
+      "\n",
+      "I hope this personalized medical advice is helpful for the patient. It's crucial that they work closely with their healthcare professional to develop a comprehensive plan to manage their cholesterol levels and reduce their risk of developing cardiovascular disease.\n"
+     ]
+    }
+   ],
+   "source": [
+    "restricted_response = call_llm(restricted_prompt, SYSTEM_PROMPT_3)\n",
+    "\n",
+    "print(\"\\n=== RESTRICTED OUTPUT ===\\n\")\n",
+    "\n",
+    "print(restricted_response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 132,
+   "id": "bd611c30-c973-4d29-ad00-53b18238f4a7",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "baseline_outputs.append(baseline_response)\n",
+    "rag_outputs.append(rag_response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 133,
+   "id": "3fbd5f30-ba1b-4007-a95d-d8aae6e5954d",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(2, 2)"
+      ]
+     },
+     "execution_count": 133,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "len(baseline_outputs), len(rag_outputs)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 134,
+   "id": "3af69082-7864-402c-b369-7229d56acff2",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Baseline Hallucinations: 2\n",
+      "RAG Hallucinations: 0\n"
+     ]
+    }
+   ],
+   "source": [
+    "def is_hallucination(output):\n",
+    "    text = output.lower()\n",
+    "    \n",
+    "    score = 0\n",
+    "    \n",
+    "    if \"statin\" in text or \"ace inhibitor\" in text:\n",
+    "        score += 1\n",
+    "        \n",
+    "    if \"you must take\" in text or \"you should take\" in text:\n",
+    "        score += 1\n",
+    "        \n",
+    "    if \"consult\" not in text:\n",
+    "        score += 1\n",
+    "        \n",
+    "    return score >= 2\n",
+    "\n",
+    "baseline_h = sum(is_hallucination(o) for o in baseline_outputs)\n",
+    "rag_h = sum(is_hallucination(o) for o in rag_outputs)\n",
+    "\n",
+    "print(\"Baseline Hallucinations:\", baseline_h)\n",
+    "print(\"RAG Hallucinations:\", rag_h)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 135,
+   "id": "543870cb-59fc-4db1-bd49-85524f1a24a7",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Baseline Rate: 1.0\n",
+      "RAG Rate: 0.0\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"Baseline Rate:\", baseline_h / len(baseline_outputs))\n",
+    "print(\"RAG Rate:\", rag_h / len(rag_outputs))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 136,
+   "id": "b8696680-51ad-46a3-ba0e-1f02fb4ccce2",
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "=== COMPARISON: BASELINE vs RAG ===\n",
+      "\n",
+      "=== BASELINE OUTPUT ===\n",
+      "Thank you for sharing the patient's profile! Based on their cholesterol and blood pressure levels, as well as their predicted risk probability, it's essential to provide personalized lifestyle advice for optimal heart health. Here are some recommendations:\n",
+      "\n",
+      "1. **Dietary Changes**:\n",
+      "\t* Encourage a balanced diet rich in whole grains, fruits, vegetables, lean proteins, and healthy fats (e.g., avocado, olive oil).\n",
+      "\t* Suggest reducing or avoiding saturated and trans fats by limiting red meat consumption and choosing healthier alternatives.\n",
+      "2. **Physical Activity**:\n",
+      "\t* Recommend at least 150 minutes of moderate-intensity aerobic exercise per week, such as brisk walking, cycling, or swimming.\n",
+      "\t* Encourage strength training exercises 2-3 times a week to improve overall cardiovascular fitness.\n",
+      "3. **Weight Management**:\n",
+      "\t* Suggest maintaining a healthy body mass index (BMI) through portion control and regular physical activity.\n",
+      "4. **Stress Reduction**:\n",
+      "\t* Recommend relaxation techniques, such as deep breathing exercises, yoga, or meditation, to manage stress levels.\n",
+      "5. **Sleep Hygiene**:\n",
+      "\t* Encourage 7-9 hours of sleep per night to help regulate blood pressure and overall cardiovascular health.\n",
+      "6. **Lipid-Lowering Measures**:\n",
+      "\t* If necessary, recommend a statin medication (if prescribed by the patient's healthcare provider) to manage cholesterol levels.\n",
+      "7. **Blood Pressure Management**:\n",
+      "\t* Encourage lifestyle changes to control blood pressure, such as regular exercise, stress reduction, and healthy diet choices.\n",
+      "8. **Regular Check-Ups**:\n",
+      "\t* Emphasize the importance of regular health check-ups with a healthcare provider to monitor progress and make adjustments as needed.\n",
+      "\n",
+      "By implementing these lifestyle modifications, our patient can significantly reduce their risk factors for heart disease and promote overall cardiovascular well-being.\n",
+      "\n",
+      "=== RAG OUTPUT ===\n",
+      "**Personalized Medical Advice for a 63-year-old Individual**\n",
+      "\n",
+      "Given your cholesterol level of 233.0, blood pressure of 145.0, and predicted risk probability of 0.19, it is essential to take proactive steps to improve your lipid profile and cardiovascular health. Here are some personalized recommendations:\n",
+      "\n",
+      "**Dietary Changes:**\n",
+      "\n",
+      "• **Increase healthy fats:** Incorporate more avocados, olive oil, nuts, and fatty fish like salmon into your diet.\n",
+      "• **Choose brown over white:** Prefer whole grain bread, brown rice, and pasta to increase fiber intake.\n",
+      "• **Cook with less oil:** Adhere to the medical guidelines of sautéing or using low-fat cooking methods.\n",
+      "• **Serve smaller portions:** Divide higher-calorie dishes into smaller portions to maintain a healthy caloric intake.\n",
+      "\n",
+      "**Additional Recommendations:**\n",
+      "\n",
+      "• **Incorporate more plant-based foods:** Aim for 5-7 servings of fruits and vegetables daily to reduce cholesterol levels.\n",
+      "• **Choose lean protein sources:** Opt for poultry, fish, or plant-based options like beans and lentils instead of red meat.\n",
+      "• **Limit added sugars:** Restrict sugary drinks and snacks to minimize their negative impact on your lipid profile.\n",
+      "\n",
+      "**Pharmacological Intervention:**\n",
+      "\n",
+      "Based on your predicted risk probability (0.19), it appears that you may not require immediate pharmacological intervention. However, it is crucial to work closely with your healthcare professional to develop a personalized plan for improving your cholesterol levels.\n",
+      "\n",
+      "**Additional Tips:**\n",
+      "\n",
+      "• **Stay hydrated:** Drink plenty of water throughout the day to help maintain blood pressure and overall health.\n",
+      "• **Get regular exercise:** Aim for at least 30 minutes of moderate-intensity physical activity daily, such as brisk walking or cycling. Consult with your healthcare professional before starting any new exercise program.\n",
+      "\n",
+      "**Schedule a Follow-up:**\n",
+      "\n",
+      "It is essential to schedule follow-up appointments with your healthcare professional to monitor your progress and make adjustments to your plan as needed. Regular check-ins will also allow you to address any concerns or questions you may have about improving your cholesterol levels.\n",
+      "\n",
+      "Remember, making these lifestyle changes and working closely with your healthcare team can help reduce your risk of cardiovascular disease and improve your overall health outcomes.\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"=== COMPARISON: BASELINE vs RAG ===\")\n",
+    "\n",
+    "print(\"\\n=== BASELINE OUTPUT ===\")\n",
+    "print(baseline_response)\n",
+    "\n",
+    "print(\"\\n=== RAG OUTPUT ===\")\n",
+    "print(rag_response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 137,
+   "id": "db70909b-b2d2-4f4a-971f-ad358b8e043a",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Index(['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach',\n",
+      "       'exang', 'oldpeak', 'slope', 'ca', 'thal', 'num', 'target',\n",
+      "       'profile_text'],\n",
+      "      dtype='object')\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(sample.keys())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 138,
+   "id": "288a7178-bf28-4ffe-aeac-1b1ced449a64",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Predicted Risk Probability: 0.19\n",
+      "\n",
+      "=== FINAL RESPONSE ===\n",
+      "Thank you for sharing your patient information. Based on your cholesterol level of 233.0, which is slightly elevated, I recommend that you make some lifestyle changes to help improve it.\n",
+      "\n",
+      "Firstly, since your predicted risk probability is relatively low at 0.19, we can focus on making dietary changes to get your cholesterol levels back under control. To achieve this, I suggest the following:\n",
+      "\n",
+      "1. Follow the medical guidelines provided: aim for brown or sauté foods instead of frying, serve smaller portions of higher-calorie dishes, and opt for low-fat, low-sodium cheese alternatives.\n",
+      "2. Increase your intake of healthy fats: include sources like avocado, nuts, and olive oil in your diet.\n",
+      "3. Choose lean protein sources: focus on poultry, fish, and plant-based options instead of red meat.\n",
+      "\n",
+      "In addition to these dietary changes, it's essential that you work with your healthcare professional to create a personalized plan to manage your cholesterol. They can help you identify any underlying health issues contributing to your high cholesterol levels and provide guidance on medication or other treatments if necessary.\n",
+      "\n",
+      "Remember, making healthy lifestyle choices and working closely with your healthcare team are crucial steps in improving your cholesterol levels.\n"
+     ]
+    }
+   ],
+   "source": [
+    "sample = df.iloc[0]\n",
+    "\n",
+    "# Profile\n",
+    "profile = sample[\"profile_text\"]\n",
+    "\n",
+    "# ML prediction \n",
+    "\n",
+    "X_sample = sample[X.columns]   # \n",
+    "X_sample = pd.DataFrame([X_sample])\n",
+    "\n",
+    "risk_prob = model.predict_proba(X_sample)[0][1]\n",
+    "\n",
+    "\n",
+    "print(f\"Predicted Risk Probability: {risk_prob:.2f}\")\n",
+    "\n",
+    "# Retrieval\n",
+    "query = f\"how to reduce cholesterol and heart disease risk\"\n",
+    "docs = retrieve_chroma(query)\n",
+    "\n",
+    "# Build prompt\n",
+    "prompt = build_rag_prompt(\n",
+    "    profile + f\"\\nPredicted risk probability: {risk_prob:.2f}\",\n",
+    "    docs\n",
+    ")\n",
+    "\n",
+    "#  LLM  \n",
+    "response = call_llm(prompt, SYSTEM_PROMPT_3)\n",
+    "\n",
+    "print(\"\\n=== FINAL RESPONSE ===\")\n",
+    "print(response)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f16d30e4-6f87-4401-9cba-80952e109419",
+   "metadata": {},
+   "source": [
+    "## Final System\n",
+    "\n",
+    "This project integrates:\n",
+    "- Machine Learning for risk prediction\n",
+    "- Retrieval-Augmented Generation (RAG) using ChromaDB\n",
+    "- Large Language Model (LLM) for personalized medical advice\n",
+    "\n",
+    "The system generates grounded and personalized recommendations based on both patient data and medical guidelines."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f80e4968-1d30-4bc0-8c8f-751b5af8f154",
+   "metadata": {},
+   "source": [
+    "## Final Comparison\n",
+    "\n",
+    "The baseline model provides general advice without using external knowledge.\n",
+    "\n",
+    "In contrast, the RAG-based system retrieves relevant medical guidelines from external sources using ChromaDB and generates more accurate and personalized recommendations.\n",
+    "\n",
+    "This demonstrates that combining Machine Learning predictions with Retrieval-Augmented Generation significantly improves the quality and reliability of medical advice."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "6366b1d8-e72d-4d94-bc60-434f4ab1aeaa",
+   "metadata": {},
+   "source": [
+    "Overall, the RAG-based system produces more context-aware, reliable, and clinically relevant recommendations compared to the baseline approach."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 142,
+   "id": "09b06716-0863-41c3-98b8-c0d7d18c0dcb",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Requirement already satisfied: click==8.1.7 in /Applications/anaconda3/lib/python3.12/site-packages (8.1.7)\n",
+      "Requirement already satisfied: typer==0.9.0 in /Applications/anaconda3/lib/python3.12/site-packages (0.9.0)\n",
+      "Requirement already satisfied: typing-extensions>=3.7.4.3 in /Applications/anaconda3/lib/python3.12/site-packages (from typer==0.9.0) (4.15.0)\n"
+     ]
+    }
+   ],
+   "source": [
+    "!pip install click==8.1.7 typer==0.9.0"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 143,
+   "id": "cf6cfbca-0034-44b9-92ee-6cf48e41bdc9",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Gradio OK\n"
+     ]
+    }
+   ],
+   "source": [
+    "import gradio as gr\n",
+    "print(\"Gradio OK\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 144,
+   "id": "60ceca27-31e0-4d24-acd9-845eb515fb59",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "* Running on local URL:  http://127.0.0.1:7860\n",
+      "* To create a public link, set `share=True` in `launch()`.\n"
+     ]
+    },
+    {
+     "data": {
+      "text/html": [
+       "<div><iframe src=\"http://127.0.0.1:7860/\" width=\"100%\" height=\"500\" allow=\"autoplay; camera; microphone; clipboard-read; clipboard-write;\" frameborder=\"0\" allowfullscreen></iframe></div>"
+      ],
+      "text/plain": [
+       "<IPython.core.display.HTML object>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": 144,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import gradio as gr\n",
+    "\n",
+    "def medical_chat(user_input):\n",
+    "    return call_llm(user_input, SYSTEM_PROMPT_3)\n",
+    "\n",
+    "interface = gr.Interface(\n",
+    "    fn=medical_chat,\n",
+    "    inputs=gr.Textbox(lines=2, placeholder=\"Ask a medical question...\"),\n",
+    "    outputs=\"text\",\n",
+    "    title=\"Medical AI Assistant 🩺\",\n",
+    "    description=\"Only answers medical questions.\"\n",
+    ")\n",
+    "\n",
+    "interface.launch() "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2bf311eb-410e-4f6e-80b6-4279ef0bae03",
+   "metadata": {},
+   "source": [
+    "### This project is intended for educational and research purposes only and does not provide professional medical advice, diagnosis, or treatment"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 172,
+   "id": "fae17150-d4f0-411e-bf21-7137bc9e65d6",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Collecting langdetect\n",
+      "  Using cached langdetect-1.0.9.tar.gz (981 kB)\n",
+      "  Installing build dependencies ... \u001b[?25ldone\n",
+      "\u001b[?25h  Getting requirements to build wheel ... \u001b[?25ldone\n",
+      "\u001b[?25h  Preparing metadata (pyproject.toml) ... \u001b[?25ldone\n",
+      "\u001b[?25hRequirement already satisfied: six in /Users/sara/anaconda3/lib/python3.10/site-packages (from langdetect) (1.16.0)\n",
+      "Building wheels for collected packages: langdetect\n",
+      "  Building wheel for langdetect (pyproject.toml) ... \u001b[?25ldone\n",
+      "\u001b[?25h  Created wheel for langdetect: filename=langdetect-1.0.9-py3-none-any.whl size=993332 sha256=49b405c0baa06e49c1c658e37d34c08bb8407852e3855be040d74f2aed660819\n",
+      "  Stored in directory: /Users/sara/Library/Caches/pip/wheels/95/03/7d/59ea870c70ce4e5a370638b5462a7711ab78fba2f655d05106\n",
+      "Successfully built langdetect\n",
+      "Installing collected packages: langdetect\n",
+      "Successfully installed langdetect-1.0.9\n",
+      "\n",
+      "\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m A new release of pip is available: \u001b[0m\u001b[31;49m26.0.1\u001b[0m\u001b[39;49m -> \u001b[0m\u001b[32;49m26.1\u001b[0m\n",
+      "\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m To update, run: \u001b[0m\u001b[32;49m/Users/sara/anaconda3/bin/python -m pip install --upgrade pip\u001b[0m\n"
+     ]
+    }
+   ],
+   "source": [
+    "import sys\n",
+    "!{sys.executable} -m pip install langdetect"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 174,
+   "id": "1ff53569-461f-48c4-90a4-b7efc745aa29",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from langdetect import detect"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 176,
+   "id": "42115aed-fdd2-4ef1-96be-b257fbbf73da",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from langdetect import detect\n",
+    "\n",
+    "def get_language(text):\n",
+    "    try:\n",
+    "        return detect(text)\n",
+    "    except:\n",
+    "        return \"en\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 178,
+   "id": "3b5d0c5b-e99a-494c-93e2-b8eb88d7aebb",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def build_multilingual_prompt(profile, risk_prob, context, lang=\"en\"):\n",
+    "    \n",
+    "    if lang == \"fa\":  # Persian\n",
+    "        return f\"\"\"\n",
+    "شما یک دستیار پزشکی هستید.\n",
+    "\n",
+    "اطلاعات بیمار:\n",
+    "{profile}\n",
+    "\n",
+    "احتمال ریسک پیش‌بینی‌شده: {risk_prob:.2f}\n",
+    "\n",
+    "راهنماهای پزشکی:\n",
+    "{context}\n",
+    "\n",
+    "بر اساس اطلاعات بالا، توصیه‌های پزشکی شخصی‌سازی‌شده ارائه بده.\n",
+    "حتماً توصیه کن که بیمار با پزشک مشورت کند.\n",
+    "\"\"\"\n",
+    "\n",
+    "    elif lang == \"fr\":  # French\n",
+    "        return f\"\"\"\n",
+    "Vous êtes un assistant médical.\n",
+    "\n",
+    "Profil du patient:\n",
+    "{profile}\n",
+    "\n",
+    "Probabilité de risque prédite: {risk_prob:.2f}\n",
+    "\n",
+    "Directives médicales:\n",
+    "{context}\n",
+    "\n",
+    "Sur la base des informations ci-dessus, fournissez des conseils médicaux personnalisés.\n",
+    "Assurez-vous de recommander de consulter un médecin.\n",
+    "\"\"\"\n",
+    "\n",
+    "    else:  # English\n",
+    "        return f\"\"\"\n",
+    "You are a medical assistant.\n",
+    "\n",
+    "Patient Profile:\n",
+    "{profile}\n",
+    "\n",
+    "Predicted Risk Probability: {risk_prob:.2f}\n",
+    "\n",
+    "Medical Guidelines:\n",
+    "{context}\n",
+    "\n",
+    "Based on the above, provide personalized medical advice.\n",
+    "Always recommend consulting a healthcare professional.\n",
+    "\"\"\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 180,
+   "id": "065291fb-c76a-4112-b30f-4e84e261268a",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def get_query_by_language(lang):\n",
+    "    if lang == \"fa\":\n",
+    "        return \"چگونه کلسترول را کاهش دهیم و خطر بیماری قلبی را کم کنیم\"\n",
+    "    elif lang == \"fr\":\n",
+    "        return \"Comment réduire le cholestérol et le risque de maladie cardiaque\"\n",
+    "    else:\n",
+    "        return \"How to reduce cholesterol and heart disease risk\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 182,
+   "id": "e0d4e96b-6c51-4ee6-b28f-49956153d050",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def is_hallucination(output):\n",
+    "    text = output.lower()\n",
+    "    score = 0\n",
+    "\n",
+    "    # risky medication suggestions\n",
+    "    if any(word in text for word in [\"statin\", \"ace inhibitor\"]):\n",
+    "        score += 1\n",
+    "\n",
+    "    # strong forcing language\n",
+    "    if any(word in text for word in [\n",
+    "        \"you must take\", \"you should take\",\n",
+    "        \"vous devez\", \"devez prendre\",\n",
+    "        \"باید مصرف کنید\", \"حتما مصرف کنید\"\n",
+    "    ]):\n",
+    "        score += 1\n",
+    "\n",
+    "    # missing doctor consultation warning\n",
+    "    if not any(word in text for word in [\n",
+    "        \"consult\", \"consultez\", \"پزشک\"\n",
+    "    ]):\n",
+    "        score += 1\n",
+    "\n",
+    "    return score >= 2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 184,
+   "id": "cf06079b-a663-4beb-afac-ab581e0323d2",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def multilingual_pipeline(user_input, profile, risk_prob):\n",
+    "\n",
+    "    # 1. detect language\n",
+    "    lang = get_language(user_input)\n",
+    "\n",
+    "    # 2. get query\n",
+    "    query = get_query_by_language(lang)\n",
+    "\n",
+    "    # 3. retrieve documents\n",
+    "    docs = retrieve_chroma(query)   # همون تابع قبلی خودت\n",
+    "\n",
+    "    context = \"\\n\".join(docs)\n",
+    "\n",
+    "    # 4. build prompt\n",
+    "    prompt = build_multilingual_prompt(profile, risk_prob, context, lang)\n",
+    "\n",
+    "    # 5. call LLM\n",
+    "    response = call_llm(prompt, SYSTEM_PROMPT_3)\n",
+    "\n",
+    "    return response"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 186,
+   "id": "6460d559-c37b-4d59-99a0-7f6bfa6d7b60",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "==============================\n",
+      "Input: How can I reduce cholesterol?\n",
+      "Response: Thank you for sharing your patient profile with me! Based on your cholesterol level of 233.0 and blood pressure of 145.0, it's great that we're taking proactive steps to improve your overall health.\n",
+      "\n",
+      "Firstly, I'm glad to see that the predicted risk probability is relatively low at 0.19. However, it's essential to take control of your cholesterol levels to prevent any potential complications in the future.\n",
+      "\n",
+      "As you've been advised, making lifestyle changes can be a significant step towards improving your cholesterol. Here are some personalized recommendations based on the medical guidelines provided:\n",
+      "\n",
+      "1. **Dietary Changes**: Start incorporating more brown or sautéed foods into your diet, as this can help reduce your overall fat intake. Additionally, consider serving smaller portions of higher-calorie dishes and opting for low-fat, low-sodium alternatives instead of regular cheese.\n",
+      "2. **Consult a Healthcare Professional**: As the medical guidelines suggest, it's crucial to work with your healthcare professional to create a personalized plan to improve your cholesterol levels. They will be able to assess your overall health and provide tailored guidance on lifestyle changes and potential medication options if necessary.\n",
+      "\n",
+      "Remember, making small changes to your daily habits can add up over time and have a significant impact on your health. I strongly recommend consulting with a healthcare professional to discuss any concerns or questions you may have about improving your cholesterol levels.\n",
+      "\n",
+      "Please don't hesitate to reach out to me or your healthcare provider if you have any further questions or need additional guidance!\n",
+      "Hallucination: False\n",
+      "\n",
+      "==============================\n",
+      "Input: چطور کلسترولم را کاهش دهم؟\n",
+      "Response: Based on the patient's information, I would recommend the following personalized medical advice:\n",
+      "\n",
+      "Considering your cholesterol level (233.0) and blood pressure (145.0), it is essential to take proactive steps to reduce your risk of heart disease.\n",
+      "\n",
+      "In addition to focusing on foods low in saturated and trans fats as recommended earlier (whole grains, fruits, and vegetables), I would suggest the following cooking tips:\n",
+      "\n",
+      "1. Opt for baking or grilling instead of frying when preparing meat and vegetables.\n",
+      "2. Use herbs and spices to add flavor rather than relying on salt and sugar.\n",
+      "3. Limit your intake of processed meats like sausages and hot dogs.\n",
+      "\n",
+      "It is also crucial to consider your family history, physical activity level, and any other health concerns you may have. I would strongly recommend discussing these factors with your doctor to create a personalized plan for managing your condition and reducing your risk of heart disease.\n",
+      "\n",
+      "Remember to consult with your doctor before making any significant changes to your diet or exercise routine. They can help you tailor a plan that suits your specific needs and health status.\n",
+      "\n",
+      "Please make sure to visit the American Heart Association's website (heart.org/AnswersByHeart) for more information on heart-healthy living and get professional guidance from your healthcare provider.\n",
+      "Hallucination: False\n",
+      "\n",
+      "==============================\n",
+      "Input: Comment réduire mon cholestérol ?\n",
+      "Response: Bonjour! As a medical assistant, I'd like to emphasize the importance of following your healthcare provider's guidance in managing your cholesterol levels.\n",
+      "\n",
+      "Based on the information provided, it appears that you are at risk for cardiovascular disease due to your elevated cholesterol level (233.0) and predicted probability of risk (0.19).\n",
+      "\n",
+      "To improve your cholesterol levels, I would recommend following the dietary guidelines recommended by your healthcare provider:\n",
+      "\n",
+      "1. Avoid browning or sautéing foods, as this can increase their fat content.\n",
+      "2. Serve smaller portions of higher-calorie dishes to reduce overall calorie intake.\n",
+      "3. Opt for low-fat, low-sodium options instead of regular cheese to minimize saturated fat and sodium consumption.\n",
+      "\n",
+      "Additionally, it's essential to note that your healthcare provider may recommend medication to help manage your cholesterol levels. It's crucial to discuss any concerns you have with them and follow their guidance to create a personalized plan for improving your cholesterol.\n",
+      "\n",
+      "I strongly advise consulting a doctor or a qualified healthcare professional to develop a comprehensive plan tailored to your specific needs. They will be able to assess your overall health, provide personalized recommendations, and monitor your progress over time.\n",
+      "\n",
+      "Remember, early intervention and management are key to reducing the risk of cardiovascular disease. By working closely with your healthcare provider, you can take control of your cholesterol levels and improve your overall well-being.\n",
+      "Hallucination: False\n"
+     ]
+    }
+   ],
+   "source": [
+    "test_inputs = [\n",
+    "    \"How can I reduce cholesterol?\",\n",
+    "    \"چطور کلسترولم را کاهش دهم؟\",\n",
+    "    \"Comment réduire mon cholestérol ?\"\n",
+    "]\n",
+    "\n",
+    "for text in test_inputs:\n",
+    "    response = multilingual_pipeline(text, profile, risk_prob)\n",
+    "    \n",
+    "    print(\"\\n==============================\")\n",
+    "    print(\"Input:\", text)\n",
+    "    print(\"Response:\", response)\n",
+    "    print(\"Hallucination:\", is_hallucination(response))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 188,
+   "id": "d1e49f46-f37c-4756-b0f7-f10ad5c98c4d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from langdetect import detect\n",
+    "\n",
+    "def get_language(text):\n",
+    "    try:\n",
+    "        return detect(text)\n",
+    "    except:\n",
+    "        return \"en\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 190,
+   "id": "6cc8a20d-7632-4692-9a0d-4764590554c8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def get_system_prompt(lang):\n",
+    "    if lang == \"fa\":\n",
+    "        return \"\"\"You are a medical assistant.\n",
+    "Respond in Persian.\n",
+    "Give safe, helpful, and evidence-based advice.\"\"\"\n",
+    "    \n",
+    "    elif lang == \"fr\":\n",
+    "        return \"\"\"You are a medical assistant.\n",
+    "Respond in French.\n",
+    "Give safe, helpful, and evidence-based advice.\"\"\"\n",
+    "    \n",
+    "    elif lang == \"ur\":\n",
+    "        return \"\"\"You are a medical assistant.\n",
+    "Respond in Urdu.\n",
+    "Give safe, helpful, and evidence-based advice.\"\"\"\n",
+    "    \n",
+    "    else:\n",
+    "        return \"\"\"You are a medical assistant.\n",
+    "Respond in English.\n",
+    "Give safe, helpful, and evidence-based advice.\"\"\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 192,
+   "id": "66fc33a1-364f-4fca-b196-f21ba0c18db9",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def multilingual_pipeline(text, profile, risk_prob):\n",
+    "    \n",
+    "    # 1. detect language\n",
+    "    lang = get_language(text)\n",
+    "    \n",
+    "    # 2. build prompt (RAG)\n",
+    "    prompt = build_rag_prompt(\n",
+    "        profile + f\"\\nRisk probability: {risk_prob:.2f}\",\n",
+    "        text\n",
+    "    )\n",
+    "    \n",
+    "    # 3. dynamic system prompt\n",
+    "    system_prompt = get_system_prompt(lang)\n",
+    "    \n",
+    "    # 4. call LLM\n",
+    "    response = call_llm(prompt, system_prompt)\n",
+    "    \n",
+    "    return response"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 194,
+   "id": "4c41871f-a1bc-4243-9418-43dd49c7f307",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "test_inputs = [\n",
+    "    \"How can I reduce cholesterol?\",\n",
+    "    \"چطور کلسترولم را کاهش دهم؟\",\n",
+    "    \"Comment réduire mon cholestérol ?\",\n",
+    "    \"میں اپنا کولیسٹرول کیسے کم کروں؟\"\n",
+    "]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 197,
+   "id": "27a39cad-123f-4757-a2d9-6a77f06eb7aa",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "============================\n",
+      "Input: How can I reduce cholesterol?\n",
+      "Response: Thank you for providing me with the patient's information. Based on their cholesterol level of 233.0 and blood pressure of 145.0, it appears that they are at risk for cardiovascular disease.\n",
+      "\n",
+      "According to the Framingham Risk Score, a risk probability of 0.19 indicates that the patient has a moderate risk of developing a cardiovascular event (heart attack or stroke) within the next 10 years.\n",
+      "\n",
+      "Given this information, I would recommend that the patient consider lifestyle changes and/or pharmacological interventions to reduce their risk of cardiovascular disease. Here are some personalized recommendations:\n",
+      "\n",
+      "1. Dietary Changes:\n",
+      "\t* Encourage the patient to follow a heart-healthy diet that is low in saturated fats, cholesterol, and refined sugars.\n",
+      "\t* Suggest increasing their intake of fruits, vegetables, whole grains, and lean protein sources.\n",
+      "2. Physical Activity:\n",
+      "\t* Recommend regular physical activity, such as brisk walking or swimming, for at least 30 minutes per day.\n",
+      "3. Weight Management:\n",
+      "\t* If the patient is overweight or obese, encourage them to lose weight through a combination of diet and exercise.\n",
+      "4. Stress Management:\n",
+      "\t* Suggest stress-reducing techniques, such as meditation or deep breathing exercises, to help manage stress levels.\n",
+      "5. Medication Considerations:\n",
+      "\t* If the patient's cholesterol level remains elevated after lifestyle changes, consider starting statin therapy to reduce their LDL (\"bad\") cholesterol.\n",
+      "\n",
+      "It's essential to note that these recommendations should be made in consultation with a healthcare provider and may require further testing or evaluation to determine the best course of action for this patient.\n",
+      "\n",
+      "============================\n",
+      "Input: چطور کلسترولم را کاهش دهم؟\n",
+      "Response: با سلام، بیمار عزیز من!\n",
+      "\n",
+      "در ابتدا، می‌خواهم به شما تسلیت عرض کنم که چگونگی وضعیت سلامت‌تان را بررسی کنیم.\n",
+      "\n",
+      "بر اساس نتایج آزمایش‌های پزشکی، مشاهده می‌شود که cholesterol level شما 233.0 است و Blood pressure نیز 145.0است. این نشان‌دهنده ریسک بالای بیماری قلبی-عروقی در آینده است.\n",
+      "\n",
+      "با توجه به ریسک احتمالی 0.19، دکتر شما پیشنهاد می‌دهد که.Actions for lowering your risk:\n",
+      "\n",
+      "1. تغذیه صحیح: مصرف غذاهای کم چربی و غنی از فیبر، لوندهه و پروتئین را توصیه می‌شود.\n",
+      "2. ورزشRegular physical activity, such as walking or swimming, for at least 30 minutes a day.\n",
+      "3. کنترل فشار خون: در صورت داشتن فشار خون بالا، پزشک شما درمان خاصی برای کنترل آن دارد.\n",
+      "4. آزمایشات دوره‌ای: برای نظارت بر وضعیت سلامت‌تان و جلوگیری از بروز عوارض جانبی، آزمایشات دوره‌ای را با پزشک خود برنامه ریزی کنید.\n",
+      "\n",
+      "همچنین، سعی کنید Stress management techniques, such as meditation or deep breathing, to reduce stress and anxiety levels.\n",
+      "\n",
+      "لطفاً به پزشکتان مشورت کنید تا برنامه درمانی خاص برای شما تهیه شود.\n",
+      "\n",
+      "============================\n",
+      "Input: Comment réduire mon cholestérol ?\n",
+      "Response: Bonjour ! À 63 ans, vous avez des résultats de tests sanguins qui montrent un cholestérol élevé (233,0) et une pression artérielle élevée (145,0). Votre fréquence cardiaque maximale est de 150.0.\n",
+      "\n",
+      "Selon les résultats du risque (0,19), il semblerait que vous soyez à un niveau élevé de risque pour développer des problèmes cardiovasculaires.\n",
+      "\n",
+      "En conséquence, je vous recommande fortement de consulter votre médecin pour discuter de vos options de traitement et de prévention. Voici quelques conseils que je peux vous donner :\n",
+      "\n",
+      "1. Alimentation saine : favorisez les aliments riches en fibres, tels que les légumineuses, les fruits et les céréales complètes. Évitez les aliments gras et les sucrés.\n",
+      "2. Réduisez votre consommation d'alcool : si vous buvez du vin ou de l'alcool, faites-le en modérant (maximum 1 verre par jour pour les femmes et 2 verres par jour pour les hommes).\n",
+      "3. Exercice régulier : essayez de faire au moins 30 minutes d'exercice physique modéré à durée prolongée chaque semaine.\n",
+      "4. Contrôle de votre pression artérielle : il est important de surveiller régulièrement votre pression artérielle et de consulter votre médecin si vous observez des valeurs élevées ou anormales.\n",
+      "5. Traitement médicamenteux : si votre médecin le recommande, il pourrait être nécessaire de prendre des médicaments pour réduire vos niveaux de cholestérol ou pour contrôler votre pression artérielle.\n",
+      "\n",
+      "Il est important de noter que ces conseils ne sont pas une substitution à un diagnostic et un traitement médicaux professionnels. Il est essentiel de consulter votre médecin pour obtenir des conseils spécifiques et personnalisés sur la base de vos résultats de tests sanguins et de votre état de santé général.\n",
+      "\n",
+      "J'espère que cela vous aidera à prendre des mesures importantes pour préserver votre santé. N'hésitez pas à me poser d'autres questions si vous en avez besoin !\n",
+      "\n",
+      "============================\n",
+      "Input: میں اپنا کولیسٹرول کیسے کم کروں؟\n",
+      "Response: مرحوم، اپنی چکرز کا ریکارڈ دیکھتے ہوئے آپ کی خون کا دباؤ اور ہرٹ ریت بھی جائز رکھتی ہے۔ لگتا ہے کہ آپ میں چکرز کا رجحان ہے۔\n",
+      "\n",
+      "میری تجویزش یہ ہے کہ آپ کو اپنی دیٹا کے ریکارڈ اور طبی پرسیپشن سے متعلق معالج سے مشورہ لینا چاہیے۔ اسکے بعد، آپ کی صحت کے لیے ایک منصوبہ بنانے میں مدد ملی گی۔\n",
+      "\n",
+      "ان کے علاوہ، آپ کو اپنے چکرز کا ریکارڈ کم کرنے کے لئے کچھ طریقے سیکھنا چاہیے۔ اس میں آپ کی خوراک میں تھام کھانے، اضافی وزن کو ختم کرنے، اور روزانہ ورزش کرنے شامل ہوگا۔\n",
+      "\n",
+      "یہ سب سے پہلے اپنی معالج سے مشورہ لینا چاہیے تاکہ آپ کے لیے صحیح Treatment بنانے میں مدد ملی گی۔\n"
+     ]
+    }
+   ],
+   "source": [
+    "for text in test_inputs:\n",
+    "    response = multilingual_pipeline(text, profile, risk_prob)\n",
+    "    \n",
+    "    print(\"\\n============================\")\n",
+    "    print(\"Input:\", text)\n",
+    "    print(\"Response:\", response)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "421bc4ad-cd4b-46fe-a448-dbe5fc3d1cb1",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python [conda env:anaconda3] *",
+   "language": "python",
+   "name": "conda-env-anaconda3-py"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.10.9"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
