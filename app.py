@@ -717,9 +717,9 @@ Patient Profile:
 
 {profile}
 
-Predicted risk probability: {risk_prob:.2f}
+#Predicted risk probability: {risk_prob:.2f}
 
-Provide general lifestyle advice for heart health.
+#Provide general lifestyle advice for heart health.
 
 """
 
@@ -736,18 +736,18 @@ print(baseline_response)
 
 
 #rag
-query = "how to reduce cholesterol and heart disease risk"
-docs = retrieve_chroma(query)
+#query = "how to reduce cholesterol and heart disease risk"
+#docs = retrieve_chroma(query)
 
-prompt = build_rag_prompt(
-    profile + f"\nPredicted risk probability: {risk_prob:.2f}",
-    docs
-)
+#prompt = build_rag_prompt(
+    #profile + f"\nPredicted risk probability: {risk_prob:.2f}",
+    #docs
+#)
 
-rag_response = call_llm(prompt, SYSTEM_PROMPT_2)
+#rag_response = call_llm(prompt, SYSTEM_PROMPT_2)
 
-print("\n=== RAG OUTPUT ===\n")
-print(rag_response)
+#print("\n=== RAG OUTPUT ===\n")
+#print(rag_response)
 
 
 # In[129]:
