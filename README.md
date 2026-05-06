@@ -31,3 +31,7 @@ The system is designed **for educational and research purposes only**.
 ```bash
 pip install -r requirements.txt
 python app.py
+Disclaimer
+
+⚠️ This project does NOT provide medical diagnosis or treatment.
+Always consult a qualified healthcare professional.
