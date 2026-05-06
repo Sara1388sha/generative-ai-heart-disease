@@ -205,7 +205,7 @@ def load_pdf(file_path):
         text += page.extract_text()
     return text
 
-pdf_text = load_pdf("How-Can-I-Improve-Cholesterol.pdf")
+pdf_text = ""
 
 
 # In[33]:
@@ -374,8 +374,7 @@ def load_pdf(file_path):
 # In[72]:
 
 
-pdf_text = load_pdf(pdf_path)
-print(pdf_text[:500])
+pdf_text = ""
 
 
 # In[74]:
