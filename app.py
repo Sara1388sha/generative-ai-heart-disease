@@ -1,21 +1,26 @@
-# ============================================
+# =========================================
 # Generative AI for Heart Disease Education
 # Educational & Research Use Only
-# ============================================
+# =========================================
 
+import streamlit as st
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
-# ============================================
-# SAFE OLLAMA IMPORT (Cloud-safe)
-# ============================================
+# =========================================
+# SAFE OLLAMA IMPORT
+# =========================================
+
 try:
     import ollama
     OLLAMA_AVAILABLE = True
 except ImportError:
     OLLAMA_AVAILABLE = False
 
+# =========================================
+# SYSTEM PROMPT
+# =========================================
 
 SYSTEM_PROMPT = """
 You are a medical assistant.
@@ -23,97 +28,168 @@ Give safe, general, evidence-based advice.
 Always recommend consulting a healthcare professional.
 """
 
+# =========================================
+# LLM FUNCTION
+# =========================================
 
-# ============================================
-# LLM FUNCTION (NO INDENTATION ISSUES)
-# ============================================
 def call_llm(prompt, system_prompt):
+
     if not OLLAMA_AVAILABLE:
-        return (
-            "LLM is disabled in this environment.\n"
-            "Run locally with Ollama installed to enable AI responses."
+        return "Ollama is not installed."
+
+    try:
+        response = ollama.chat(
+            model="llama3",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
         )
 
-    response = ollama.chat(
-        model="llama3",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    return response["message"]["content"]
+        return response["message"]["content"]
 
+    except Exception as e:
+        return f"LLM Error: {e}"
 
-# ============================================
-# LOAD DATA
-# ============================================
-url = "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"
+# =========================================
+# MULTILINGUAL PROMPT
+# =========================================
 
-columns = [
-    "age", "sex", "cp", "trestbps", "chol", "fbs", "restecg",
-    "thalach", "exang", "oldpeak", "slope", "ca", "thal", "num"
-]
+def build_multilingual_prompt(profile, risk_prob, lang="en"):
 
-df = pd.read_csv(url, header=None, names=columns, na_values="?")
-df = df.dropna()
-df["target"] = df["num"].apply(lambda x: 1 if x > 0 else 0)
+    if lang == "fa":
 
-X = df.drop(columns=["num", "target"])
-y = df["target"]
+        return f"""
+شما یک دستیار پزشکی هستید.
 
+اطلاعات بیمار:
+{profile}
 
-# ============================================
-# TRAIN MODEL
-# ============================================
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, stratify=y, random_state=42
-)
+احتمال ریسک:
+{risk_prob:.2f}
 
-model = RandomForestClassifier(random_state=42)
-model.fit(X_train, y_train)
-
-
-# ============================================
-# HELPER
-# ============================================
-def create_profile(row):
-    return f"""
-Age: {int(row['age'])}
-Cholesterol: {row['chol']}
-Blood Pressure: {row['trestbps']}
-Max Heart Rate: {row['thalach']}
+بر اساس اطلاعات بالا توصیه پزشکی ارائه بده.
+حتماً توصیه کن بیمار با پزشک مشورت کند.
 """
 
-# ============================================
-# MAIN PIPELINE
-# ============================================
-if __name__ == "__main__":
+    elif lang == "fr":
 
-    sample = df.iloc[0]
-    profile = create_profile(sample)
+        return f"""
+Vous êtes un assistant médical.
 
-    X_sample = pd.DataFrame([sample[X.columns]])
-    risk_prob = model.predict_proba(X_sample)[0][1]
+Profil du patient:
+{profile}
 
-    risk_level = "HIGH risk" if risk_prob >= 0.3 else "LOW risk"
+Probabilité de risque:
+{risk_prob:.2f}
 
-    prompt = f"""
+Fournissez des conseils médicaux personnalisés.
+Recommandez de consulter un médecin.
+"""
+
+    else:
+
+        return f"""
+You are a medical assistant.
+
 Patient Profile:
 {profile}
 
-Predicted Risk Probability: {risk_prob:.2f}
-Risk Level: {risk_level}
+Predicted Risk Probability:
+{risk_prob:.2f}
 
-Provide general lifestyle advice for heart health.
+Provide personalized medical advice.
+Always recommend consulting a healthcare professional.
 """
+
+# =========================================
+# SAMPLE DATA
+# =========================================
+
+data = {
+    "age": [45, 54, 37, 62, 50],
+    "cholesterol": [220, 180, 190, 260, 210],
+    "blood_pressure": [140, 130, 120, 170, 150],
+    "target": [1, 0, 0, 1, 1]
+}
+
+df = pd.DataFrame(data)
+
+X = df[["age", "cholesterol", "blood_pressure"]]
+y = df["target"]
+
+# =========================================
+# MODEL TRAINING
+# =========================================
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42
+)
+
+model = RandomForestClassifier()
+model.fit(X_train, y_train)
+
+# =========================================
+# STREAMLIT UI
+# =========================================
+
+st.title("❤️ Generative AI Heart Disease Assistant")
+
+age = st.slider("Age", 20, 90, 50)
+cholesterol = st.slider("Cholesterol", 100, 300, 200)
+blood_pressure = st.slider("Blood Pressure", 80, 200, 130)
+
+language = st.selectbox(
+    "Language",
+    ["en", "fa", "fr"]
+)
+
+# =========================================
+# PREDICTION
+# =========================================
+
+if st.button("Predict Risk"):
+
+    sample = pd.DataFrame([{
+        "age": age,
+        "cholesterol": cholesterol,
+        "blood_pressure": blood_pressure
+    }])
+
+    risk_prob = model.predict_proba(sample)[0][1]
+
+    prediction = int(risk_prob > 0.5)
+
+    if prediction == 1:
+        risk = "HIGH RISK"
+    else:
+        risk = "LOW RISK"
+
+    st.subheader(f"Prediction: {risk}")
+    st.write(f"Risk Probability: {risk_prob:.2f}")
+
+    profile = f"""
+Age: {age}
+Cholesterol: {cholesterol}
+Blood Pressure: {blood_pressure}
+"""
+
+    prompt = build_multilingual_prompt(
+        profile,
+        risk_prob,
+        language
+    )
 
     response = call_llm(prompt, SYSTEM_PROMPT)
 
-    print("=== PATIENT PROFILE ===")
-    print(profile)
-
-    print(f"Predicted Risk Probability: {risk_prob:.2f}")
-    print("Risk Level:", risk_level)
-
-    print("\n=== AI RESPONSE ===")
-    print(response)
+    st.subheader("AI Medical Advice")
+    st.write(response)
